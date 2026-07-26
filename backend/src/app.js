@@ -1,9 +1,11 @@
-import express from "express"
-import cors from "cors"
-import cookieParser from "cookie-parser"
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 
-const app = express()
+import authRoutes from "./routes/auth.routes.js";
+import errorHandler from "./middlewares/error.middleware.js";
 
+const app = express();
 
 /*
 |--------------------------------------------------------------------------
@@ -11,15 +13,10 @@ const app = express()
 |--------------------------------------------------------------------------
 */
 
-
 app.use(cors());
-
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cookieParser());
-
 
 /*
 |--------------------------------------------------------------------------
@@ -27,12 +24,34 @@ app.use(cookieParser());
 |--------------------------------------------------------------------------
 */
 
-
-app.get("/api/health", (req, res) =>{
+app.get("/api/health", (req, res) => {
     res.status(200).json({
-        success: true, 
-        message: "API working fine"
-    })
-})
+        success: true,
+        message: "API working fine",
+    });
+});
+
+app.use("/api/auth", authRoutes);
+
+/*
+|--------------------------------------------------------------------------
+| 404 Handler
+|--------------------------------------------------------------------------
+*/
+
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: "Route not found",
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Global Error Handler
+|--------------------------------------------------------------------------
+*/
+
+app.use(errorHandler);
 
 export default app;
