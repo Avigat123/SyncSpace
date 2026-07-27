@@ -2,7 +2,7 @@ import express from "express";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
 
-import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument } from "../controllers/document.controller.js";
+import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument } from "../controllers/document.controller.js";
 
 const router = express.Router();
 
@@ -17,5 +17,15 @@ router.get("/:id", getDocument);
 router.put("/:id", updateDocument);
 
 router.delete("/:id", deleteDocument);
+
+router.post("/:id/share", shareDocument);
+
+router.get("/:id", checkDocumentPermission("viewer"), getDocument);
+
+router.put("/:id", checkDocumentPermission("editor"), updateDocument);
+
+router.delete("/:id", checkDocumentPermission("owner"), deleteDocument);
+
+router.post("/:id/share", checkDocumentPermission("owner"), shareDocument);
 
 export default router;

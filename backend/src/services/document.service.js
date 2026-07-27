@@ -16,8 +16,12 @@ export const getUserDocuments = async (userId) => {
     });
 };
 
-export const getDocumentById = async (documentId) => {
-    const document = await Document.findById(documentId);
+export const getDocumentById = async (documentId, userId) => {
+
+    const document = await Document.findOne({
+        _id: documentId,
+        owner: userId,
+    });
 
     if (!document) {
         throw new ApiError(404, "Document not found");
@@ -26,9 +30,13 @@ export const getDocumentById = async (documentId) => {
     return document;
 };
 
-export const updateDocument = async (documentId, data) => {
-    const document = await Document.findByIdAndUpdate(
-        documentId,
+export const updateDocument = async (documentId, userId, data) => {
+
+    const document = await Document.findOneAndUpdate(
+        {
+            _id: documentId,
+            owner: userId,
+        },
         data,
         {
             new: true,
@@ -43,8 +51,12 @@ export const updateDocument = async (documentId, data) => {
     return document;
 };
 
-export const deleteDocument = async (documentId) => {
-    const document = await Document.findByIdAndDelete(documentId);
+export const deleteDocument = async (documentId, userId) => {
+
+    const document = await Document.findOneAndDelete({
+        _id: documentId,
+        owner: userId,
+    });
 
     if (!document) {
         throw new ApiError(404, "Document not found");
