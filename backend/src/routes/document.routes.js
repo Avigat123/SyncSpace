@@ -3,7 +3,7 @@ import express from "express";
 import authMiddleware from "../middlewares/auth.middleware.js";
 
 import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument } from "../controllers/document.controller.js";
-
+import checkDocumentPermission from "../middlewares/documentPermission.middleware.js";
 const router = express.Router();
 
 router.use(authMiddleware);
