@@ -1,8 +1,7 @@
 import { Server } from "socket.io";
 import registerDocumentHandlers from "./document.socket.js";
 import socketAuth from "./socketAuth.js";
-
-
+import { setIO } from "./socketInstance.js";
 
 export default function initializeSocket(server) {
     const io = new Server(server, {
@@ -11,6 +10,8 @@ export default function initializeSocket(server) {
             credentials: true,
         },
     });
+
+    setIO(io);
 
     io.use(socketAuth);
     

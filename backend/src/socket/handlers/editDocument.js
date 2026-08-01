@@ -1,9 +1,10 @@
 import Document from "../../models/document.model.js";
 import { saveTimers } from "../store.js";
+import Version from "../../models/version.model.js";
 
 export default function editDocument(io, socket) {
 
-    return function ({ documentId, content }) {
+    return async function ({ documentId, content }) {
 
         socket.to(documentId).emit(
             "document-updated",
@@ -22,12 +23,30 @@ export default function editDocument(io, socket) {
 
             try {
 
-                await Document.findByIdAndUpdate(
-                    documentId,
-                    {
-                        content,
-                    }
-                );
+                // Load the current document
+                const document = await Document.findById(documentId);
+
+                if (!document) {
+                    saveTimers.delete(documentId);
+                    return;
+                }
+
+                // Don't create a version if nothing changed
+                if (document.content !== content) {
+
+                    // Save the previous state
+                    await Version.create({
+                        document: document._id,
+                        title: document.title,
+                        content: document.content,
+                        editedBy: socket.user._id,
+                    });
+
+                    // Update the document
+                    document.content = content;
+
+                    await document.save();
+                }
 
                 saveTimers.delete(documentId);
 

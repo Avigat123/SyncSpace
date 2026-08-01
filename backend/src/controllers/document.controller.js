@@ -1,6 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import * as documentService from "../services/document.service.js";
 import User from "../models/user.model.js";
+import { getIO } from "../socket/socketInstance.js";
 
 export const createDocument = asyncHandler(async (req, res) => {
 
@@ -79,21 +80,21 @@ export const shareDocument = asyncHandler(async (req, res) => {
     }
 
     if (document.owner.toString() !== req.user._id.toString()) {
-       throw new ApiError(403, "Only the owner can share this document");
+        throw new ApiError(403, "Only the owner can share this document");
     }
 
     const user = await User.findOne({ email });
 
     if (!user) {
-       throw new ApiError(404, "User not found");
+        throw new ApiError(404, "User not found");
     }
 
     if (user._id.toString() === document.owner.toString()) {
-       throw new ApiError(400, "Owner already has access");
+        throw new ApiError(400, "Owner already has access");
     }
 
     if (!["editor", "viewer"].includes(role)) {
-       throw new ApiError(400, "Invalid role");
+        throw new ApiError(400, "Invalid role");
     }
 
     const alreadyCollaborator = document.collaborators.find(
@@ -109,7 +110,7 @@ export const shareDocument = asyncHandler(async (req, res) => {
         role,
     });
 
-    await document.save(    );
+    await document.save();
 
     res.status(200).json({
         success: true,
@@ -117,4 +118,62 @@ export const shareDocument = asyncHandler(async (req, res) => {
         document,
     });
 
+});
+
+
+export const getDocumentVersions = asyncHandler(async (req, res) => {
+
+    const versions = await Version.find({
+        document: req.params.id,
+    })
+        .populate("editedBy", "name email")
+        .sort({ createdAt: -1 });
+
+    res.status(200).json({
+        success: true,
+        versions,
+    });
+
+});
+
+
+export const restoreVersion = asyncHandler(async (req, res) => {
+    const version = await Version.findById(req.params.versionId);
+
+    if (!version) {
+        throw new ApiError(404, "Version not found");
+    }
+
+    const document = await Document.findById(req.params.documentId);
+
+    if (!document) {
+        throw new ApiError(404, "Document not found");
+    }   
+
+    if (version.document.toString() !== document._id.toString()) {
+        throw new ApiError(
+            400,
+            "Version does not belong to this document"
+        );
+    }
+
+    document.content = version.content;
+    document.title = version.title;
+
+    await document.save();
+    
+    const io = getIO();
+
+    io.to(document._id.toString()).emit(
+        "document-restored",
+        {
+            title: document.title,
+            content: document.content,
+        }
+    );
+
+    res.status(200).json({
+        success: true,
+        message: "Document restored successfully",
+    });
 });

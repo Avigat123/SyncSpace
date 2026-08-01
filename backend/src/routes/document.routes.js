@@ -28,4 +28,8 @@ router.delete("/:id", checkDocumentPermission("owner"), deleteDocument);
 
 router.post("/:id/share", checkDocumentPermission("owner"), shareDocument);
 
+router.get("/:id/history", checkDocumentPermission("viewer"), getDocumentVersions);
+
+router.post("/:documentId/history/:versionId/restore", checkDocumentPermission("editor"), restoreVersion);
+
 export default router;
