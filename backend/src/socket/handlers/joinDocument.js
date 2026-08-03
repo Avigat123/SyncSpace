@@ -1,5 +1,8 @@
+import * as Y from "yjs";
 import Document from "../../models/document.model.js";
 import { activeUsers } from "../store.js";
+import { getYDoc } from "../yjsStore.js";
+import { getAwareness } from "../awarenessStore.js";
 
 export default function joinDocument(io, socket) {
 
@@ -14,6 +17,14 @@ export default function joinDocument(io, socket) {
                     "error",
                     "Document not found"
                 );
+            }
+
+            const ydoc = getYDoc(documentId);
+
+            const ytext = ydoc.getText("document");
+
+            if (ytext.length === 0) {
+                ytext.insert(0, document.content);
             }
 
             const isOwner =
@@ -40,12 +51,13 @@ export default function joinDocument(io, socket) {
 
             socket.join(documentId);
 
+            const awareness = getAwareness(documentId);
+
             socket.documentId = documentId;
 
-            socket.emit("document-loaded", {
-                title: document.title,
-                content: document.content,
-            });
+            const update = Y.encodeStateAsUpdate(ydoc);
+
+            socket.emit("sync-document", update);
 
             if (!activeUsers.has(documentId)) {
                 activeUsers.set(documentId, []);

@@ -13,6 +13,11 @@ const documentSchema = new mongoose.Schema(
             default: "",
         },
 
+        yjsState: {
+            type: Buffer,
+            default: null,
+        },
+
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -32,6 +37,7 @@ const documentSchema = new mongoose.Schema(
                 },
             },
         ],
+
     },
     {
         timestamps: true,

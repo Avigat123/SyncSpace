@@ -3,7 +3,8 @@ import editDocument from "./handlers/editDocument.js";
 import disconnect from "./handlers/disconnect.js";
 import CursorMove from "./handlers/CursorMove.js";
 import typing from "./handlers/typing.js";
-import restoreVersion from "./handlers/restoreVersion.js";
+import syncYjs from "./handlers/syncYjs.js";
+// import restoreVersion from "./handlers/restoreVersion.js";
 
 export default function registerDocumentHandlers(io, socket) {
 
@@ -13,8 +14,8 @@ export default function registerDocumentHandlers(io, socket) {
     );
 
     socket.on(
-        "edit-document",
-        editDocument(io, socket)
+        "yjs-update",
+        syncYjs(io, socket)
     );
 
     socket.on(
@@ -27,14 +28,15 @@ export default function registerDocumentHandlers(io, socket) {
         typing(io, socket)
     );
 
-    socket.on(
-        "restore-version",
-        restoreVersion(io, socket)
-    );
-    
+    // socket.on(
+    //     "restore-version",
+    //     restoreVersion(io, socket)
+    // );
+
     socket.on(
         "disconnect",
         disconnect(io, socket)
     );
+
 
 }
