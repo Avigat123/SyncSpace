@@ -3,7 +3,10 @@ import ApiError from "../utils/ApiError.js";
 
 const socketAuth = (socket, next) => {
     try {
-        const token = socket.handshake.auth.token;
+        const token = socket.handshake.headers.cookie
+            ?.split("; ")
+            .find(cookie => cookie.startsWith("token="))
+            ?.split("=")[1];
 
         if (!token) {
             return next(new ApiError(401, "Authentication required"));

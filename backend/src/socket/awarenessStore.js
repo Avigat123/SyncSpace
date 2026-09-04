@@ -3,11 +3,11 @@ import { getYDoc } from "./yjsStore.js";
 
 const awarenessMap = new Map();
 
-export function getAwareness(documentId) {
+export async function getAwareness(documentId) {
 
     if (!awarenessMap.has(documentId)) {
 
-        const ydoc = getYDoc(documentId);
+        const ydoc = await getYDoc(documentId);
 
         awarenessMap.set(
             documentId,

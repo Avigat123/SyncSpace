@@ -5,11 +5,11 @@ import { saveYDoc } from "../../services/yjs.service.js";
 
 export default function syncYjs(io, socket) {
 
-    return function ({ documentId, update }) {
+    return async function ({ documentId, update }) {
 
-        const ydoc = getYDoc(documentId);
+        const ydoc = await getYDoc(documentId);
 
-        Y.applyUpdate( ydoc, update);
+        Y.applyUpdate(ydoc, new Uint8Array(update));
 
         socket.to(documentId).emit("yjs-update",update);
 

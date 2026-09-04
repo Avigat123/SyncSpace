@@ -12,13 +12,7 @@ export async function getYDoc(documentId) {
 
         const ydoc = await loadYDoc(documentId);
 
-        const ytext = ydoc.getText("document");
-
-        if(ytext.length === 0){
-            ytext.insert(0, document.content);
-        }
-
-        docs.set(documentId, doc);
+        docs.set(documentId, ydoc);
 
     }
 

@@ -6,7 +6,15 @@ import { setIO } from "./socketInstance.js";
 export default function initializeSocket(server) {
     const io = new Server(server, {
         cors: {
-            origin: process.env.CLIENT_URL,
+            // Read CLIENT_URL at connection time (same hoisting fix as app.js).
+            origin: (origin, callback) => {
+                const allowed = process.env.CLIENT_URL;
+                if (!origin || origin === allowed) {
+                    callback(null, true);
+                } else {
+                    callback(new Error(`CORS: origin ${origin} not allowed`));
+                }
+            },
             credentials: true,
         },
     });
@@ -14,17 +22,17 @@ export default function initializeSocket(server) {
     setIO(io);
 
     io.use(socketAuth);
-    
+
     io.on("connection", (socket) => {
         console.log("User connected");
-        
+
         registerDocumentHandlers(io, socket);
-        
+
         socket.on("disconnect", () => {
             console.log("User disconnected");
         });
     });
-    
+
 
 
     return io;

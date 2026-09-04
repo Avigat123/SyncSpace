@@ -16,7 +16,17 @@ const app = express();
 
 app.use(
     cors({
-        origin: process.env.CLIENT_URL,
+        // Use a function so the env var is read at request time,
+        // not at module-evaluation time (ES module imports are hoisted
+        // before dotenv.config() runs in server.js).
+        origin: (origin, callback) => {
+            const allowed = process.env.CLIENT_URL;
+            if (!origin || origin === allowed) {
+                callback(null, true);
+            } else {
+                callback(new Error(`CORS: origin ${origin} not allowed`));
+            }
+        },
         credentials: true,
     })
 );

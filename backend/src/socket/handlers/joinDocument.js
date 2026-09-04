@@ -19,7 +19,7 @@ export default function joinDocument(io, socket) {
                 );
             }
 
-            const ydoc = getYDoc(documentId);
+            const ydoc = await getYDoc(documentId);
 
             const ytext = ydoc.getText("document");
 
@@ -51,7 +51,7 @@ export default function joinDocument(io, socket) {
 
             socket.join(documentId);
 
-            const awareness = getAwareness(documentId);
+            const awareness = await getAwareness(documentId);
 
             socket.documentId = documentId;
 

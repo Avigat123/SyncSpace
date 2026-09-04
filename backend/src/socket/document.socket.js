@@ -14,7 +14,7 @@ export default function registerDocumentHandlers(io, socket) {
     );
 
     socket.on(
-        "yjs-update",
+        "sync-yjs",
         syncYjs(io, socket)
     );
 
