@@ -1,6 +1,9 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import * as documentService from "../services/document.service.js";
 import User from "../models/user.model.js";
+import Document from "../models/document.model.js";
+import Version from "../models/version.model.js";
+import ApiError from "../utils/ApiError.js";
 import { getIO } from "../socket/socketInstance.js";
 
 export const createDocument = asyncHandler(async (req, res) => {
@@ -31,8 +34,7 @@ export const getDocuments = asyncHandler(async (req, res) => {
 export const getDocument = asyncHandler(async (req, res) => {
 
     const document = await documentService.getDocumentById(
-        req.params.id,
-        req.user._id
+        req.params.id
     );
 
     res.json({
@@ -45,7 +47,6 @@ export const updateDocument = asyncHandler(async (req, res) => {
 
     const document = await documentService.updateDocument(
         req.params.id,
-        req.user._id,
         req.body
     );
 
@@ -58,8 +59,7 @@ export const updateDocument = asyncHandler(async (req, res) => {
 export const deleteDocument = asyncHandler(async (req, res) => {
 
     await documentService.deleteDocument(
-        req.params.id,
-        req.user._id
+        req.params.id
     );
 
     res.json({
@@ -148,7 +148,7 @@ export const restoreVersion = asyncHandler(async (req, res) => {
 
     if (!document) {
         throw new ApiError(404, "Document not found");
-    }   
+    }
 
     if (version.document.toString() !== document._id.toString()) {
         throw new ApiError(
@@ -161,7 +161,7 @@ export const restoreVersion = asyncHandler(async (req, res) => {
     document.title = version.title;
 
     await document.save();
-    
+
     const io = getIO();
 
     io.to(document._id.toString()).emit(

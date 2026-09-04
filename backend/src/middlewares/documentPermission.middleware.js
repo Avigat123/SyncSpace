@@ -13,7 +13,7 @@ const checkDocumentPermission = (requiredRole) => {
         
         if(document.owner.toString() === req.user._id.toString()){
             req.document = document;
-            next();
+            return next();
         }
 
         //If the user isn't the owner, look in the collaborators array.

@@ -4,6 +4,15 @@ const BASE_URL =
 /**
  * Thin fetch wrapper that always sends credentials (cookies) and
  * attaches the Content-Type header for JSON requests.
+ * 
+ * Instead of writing this everywhere:
+ * fetch("http://localhost:5000/api/documents", {
+    method: "GET",
+    credentials: "include"
+});
+ * 
+ * You can simply write:
+ * request("/documents");
  */
 async function request(path, options = {}) {
     const response = await fetch(`${BASE_URL}${path}`, {

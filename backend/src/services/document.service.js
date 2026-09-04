@@ -11,17 +11,18 @@ export const createDocument = async (title, ownerId) => {
 };
 
 export const getUserDocuments = async (userId) => {
-    return await Document.find({ owner: userId }).sort({
+    return await Document.find({
+        $or: [
+            { owner: userId },
+            { "collaborators.user": userId },
+        ],
+    }).sort({
         updatedAt: -1,
     });
 };
 
-export const getDocumentById = async (documentId, userId) => {
-
-    const document = await Document.findOne({
-        _id: documentId,
-        owner: userId,
-    });
+export const getDocumentById = async (documentId) => {
+    const document = await Document.findById(documentId);
 
     if (!document) {
         throw new ApiError(404, "Document not found");
@@ -30,13 +31,9 @@ export const getDocumentById = async (documentId, userId) => {
     return document;
 };
 
-export const updateDocument = async (documentId, userId, data) => {
-
-    const document = await Document.findOneAndUpdate(
-        {
-            _id: documentId,
-            owner: userId,
-        },
+export const updateDocument = async (documentId, data) => {
+    const document = await Document.findByIdAndUpdate(
+        documentId,
         data,
         {
             new: true,
@@ -51,12 +48,8 @@ export const updateDocument = async (documentId, userId, data) => {
     return document;
 };
 
-export const deleteDocument = async (documentId, userId) => {
-
-    const document = await Document.findOneAndDelete({
-        _id: documentId,
-        owner: userId,
-    });
+export const deleteDocument = async (documentId) => {
+    const document = await Document.findByIdAndDelete(documentId);
 
     if (!document) {
         throw new ApiError(404, "Document not found");

@@ -2,34 +2,64 @@ import express from "express";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
 
-import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument, restoreVersion, getDocumentVersions } from "../controllers/document.controller.js";
+import {
+    createDocument,
+    getDocuments,
+    getDocument,
+    updateDocument,
+    deleteDocument,
+    shareDocument,
+    restoreVersion,
+    getDocumentVersions,
+} from "../controllers/document.controller.js";
+
 import checkDocumentPermission from "../middlewares/documentPermission.middleware.js";
+
 const router = express.Router();
 
 router.use(authMiddleware);
 
+// Document creation/listing
 router.post("/", createDocument);
-
 router.get("/", getDocuments);
 
-router.get("/:id", getDocument);
+// Single document
+router.get(
+    "/:id",
+    checkDocumentPermission("viewer"),
+    getDocument
+);
 
-router.put("/:id", updateDocument);
+router.put(
+    "/:id",
+    checkDocumentPermission("editor"),
+    updateDocument
+);
 
-router.delete("/:id", deleteDocument);
+router.delete(
+    "/:id",
+    checkDocumentPermission("owner"),
+    deleteDocument
+);
 
-router.post("/:id/share", shareDocument);
+// Sharing
+router.post(
+    "/:id/share",
+    checkDocumentPermission("owner"),
+    shareDocument
+);
 
-router.get("/:id", checkDocumentPermission("viewer"), getDocument);
+// Version history
+router.get(
+    "/:id/history",
+    checkDocumentPermission("viewer"),
+    getDocumentVersions
+);
 
-router.put("/:id", checkDocumentPermission("editor"), updateDocument);
-
-router.delete("/:id", checkDocumentPermission("owner"), deleteDocument);
-
-router.post("/:id/share", checkDocumentPermission("owner"), shareDocument);
-
-router.get("/:id/history", checkDocumentPermission("viewer"), getDocumentVersions);
-
-router.post("/:documentId/history/:versionId/restore", checkDocumentPermission("editor"), restoreVersion);
+router.post(
+    "/:documentId/history/:versionId/restore",
+    checkDocumentPermission("editor"),
+    restoreVersion
+);
 
 export default router;
