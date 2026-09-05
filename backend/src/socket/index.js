@@ -24,16 +24,10 @@ export default function initializeSocket(server) {
     io.use(socketAuth);
 
     io.on("connection", (socket) => {
-        console.log("User connected");
+        console.log(`[socket] connected id=${socket.id} user=${socket.user?.name ?? "unknown"}`);
 
         registerDocumentHandlers(io, socket);
-
-        socket.on("disconnect", () => {
-            console.log("User disconnected");
-        });
     });
 
-
-
     return io;
-}
+}

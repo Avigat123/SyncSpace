@@ -1,59 +1,48 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useEditor } from "@tiptap/react";
 
-import { createYDoc, destroyYDoc } from "../collaboration/ydoc";
+import { createYDoc } from "../collaboration/ydoc";
 import { createCollaborativeExtensions } from "../collaboration/extensions";
 import { createSocketProvider } from "../collaboration/socketProvider";
 import socket from "../services/socket";
 
 export default function useCollaborativeEditor(documentId) {
-  const ydoc = useMemo(() => {
-    return createYDoc();
-  }, [documentId]);
+  // One Y.Doc per documentId. Do NOT destroy it inside useEffect —
+  // the ydoc must outlive the StrictMode fake-unmount cycle.
+  const ydoc = useMemo(() => createYDoc(), [documentId]);
 
   const editor = useEditor(
-    {
-      extensions: createCollaborativeExtensions(ydoc),
-    },
+    { extensions: createCollaborativeExtensions(ydoc) },
     [ydoc]
   );
 
-  /*
-   * Socket + Yjs synchronization
-   */
+  const providerRef = useRef(null);
+
+  // Effect 1 — provider lifecycle (join room, Yjs listeners).
+  // Does NOT touch the ydoc lifetime.
   useEffect(() => {
-    if (!documentId) return;
+    if (!documentId || ydoc.destroyed) return;
 
     if (!socket.connected) {
       socket.connect();
     }
 
-    const provider = createSocketProvider({
-      socket,
-      ydoc,
-      documentId,
-    });
+    const provider = createSocketProvider({ socket, ydoc, documentId });
+    providerRef.current = provider;
 
     return () => {
       provider.destroy();
+      providerRef.current = null;
     };
   }, [documentId, ydoc]);
 
-  /*
-   * Cleanup editor and Y.Doc
-   */
+  // Effect 2 — editor lifetime only.
   useEffect(() => {
     return () => {
-      if (editor) {
-        editor.destroy();
-      }
-
-      destroyYDoc(ydoc);
+      if (editor) editor.destroy();
     };
-  }, [editor, ydoc]);
+  }, [editor]);
 
-  return {
-    editor,
-    ydoc,
-  };
+  return { editor, ydoc };
 }
+

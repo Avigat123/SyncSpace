@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
+import User from "../models/user.model.js";
 import ApiError from "../utils/ApiError.js";
 
-const socketAuth = (socket, next) => {
+const socketAuth = async (socket, next) => {
     try {
         const token = socket.handshake.headers.cookie
             ?.split("; ")
@@ -17,7 +18,15 @@ const socketAuth = (socket, next) => {
             process.env.JWT_SECRET
         );
 
-        socket.user = decoded;
+        // Fetch the real User document so socket.user._id (Mongoose ObjectId)
+        // is available — mirrors auth.middleware.js for HTTP routes.
+        const user = await User.findById(decoded.userId).select("-password");
+
+        if (!user) {
+            return next(new ApiError(401, "User not found"));
+        }
+
+        socket.user = user;
 
         next();
     } catch (error) {

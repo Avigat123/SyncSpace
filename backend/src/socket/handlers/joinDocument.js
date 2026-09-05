@@ -10,93 +10,70 @@ export default function joinDocument(io, socket) {
 
         try {
 
+            // 1. Find the document
             const document = await Document.findById(documentId);
 
             if (!document) {
-                return socket.emit(
-                    "error",
-                    "Document not found"
-                );
+                return socket.emit("error", "Document not found");
             }
 
-            const ydoc = await getYDoc(documentId);
-
-            const ytext = ydoc.getText("document");
-
-            if (ytext.length === 0) {
-                ytext.insert(0, document.content);
-            }
-
+            // 2. Check ownership / collaborator access BEFORE initializing ydoc
             const isOwner =
-                document.owner.toString() ===
-                socket.user._id.toString();
+                document.owner.toString() === socket.user._id.toString();
 
             if (!isOwner) {
-
-                const collaborator =
-                    document.collaborators.find(
-                        c =>
-                            c.user.toString() ===
-                            socket.user._id.toString()
-                    );
+                const collaborator = document.collaborators.find(
+                    c => c.user.toString() === socket.user._id.toString()
+                );
 
                 if (!collaborator) {
-                    return socket.emit(
-                        "error",
-                        "Access denied"
-                    );
+                    return socket.emit("error", "Access denied");
                 }
-
             }
 
-            socket.join(documentId);
+            // 3. Get (or create) the server-side Y.Doc
+            const ydoc = await getYDoc(documentId);
 
-            const awareness = await getAwareness(documentId);
-
+            // 4. Join the Socket.IO room
+            await socket.join(documentId);
             socket.documentId = documentId;
 
+            const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
+            console.log(`[joinDocument] socket=${socket.id} joined docId=${documentId} roomSize=${roomSize}`);
+
+            // 5. Awareness placeholder (kept for future use)
+            await getAwareness(documentId);
+
+            // 6. Send current Y.Doc state to the joining client
             const update = Y.encodeStateAsUpdate(ydoc);
+            socket.emit("sync-document", Array.from(update));
 
-            socket.emit("sync-document", update);
-
+            // 7. Track active users
             if (!activeUsers.has(documentId)) {
                 activeUsers.set(documentId, []);
             }
 
-            const users =
-                activeUsers.get(documentId);
+            const users = activeUsers.get(documentId);
 
-            const exists = users.find(
-                user =>
-                    user.socketId === socket.id
-            );
+            const alreadyTracked = users.find(u => u.socketId === socket.id);
 
-            if (!exists) {
-
+            if (!alreadyTracked) {
                 users.push({
                     socketId: socket.id,
                     userId: socket.user._id,
                     name: socket.user.name,
                 });
-
             }
 
-            io.to(documentId).emit(
-                "users-online",
-                users
-            );
+            io.to(documentId).emit("users-online", users);
 
         } catch (err) {
 
-            console.error(err);
-
-            socket.emit(
-                "error",
-                "Something went wrong"
-            );
+            console.error("[joinDocument] Error:", err);
+            socket.emit("error", "Something went wrong");
 
         }
 
     };
 
-}
+}
