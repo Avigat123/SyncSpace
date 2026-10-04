@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { encodeAwarenessUpdate } from "y-protocols/awareness";
 import Document from "../../models/document.model.js";
 import { activeUsers } from "../store.js";
 import { getYDoc } from "../yjsStore.js";
@@ -41,8 +42,26 @@ export default function joinDocument(io, socket) {
             const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
             console.log(`[joinDocument] socket=${socket.id} joined docId=${documentId} roomSize=${roomSize}`);
 
-            // 5. Awareness placeholder (kept for future use)
-            await getAwareness(documentId);
+            // 5. Awareness synchronization
+            const awareness = await getAwareness(documentId);
+
+            // Request existing clients in the room to send their awareness to the newly joined client
+            if (roomSize > 1) {
+                socket.to(documentId).emit("awareness-sync-request", {
+                    documentId,
+                    targetSocketId: socket.id,
+                });
+            }
+
+            // Send existing server-side awareness if any clients are recorded
+            const serverClientIds = Array.from(awareness.getStates().keys());
+            if (serverClientIds.length > 0) {
+                const awarenessUpdate = encodeAwarenessUpdate(awareness, serverClientIds);
+                socket.emit("awareness-update", {
+                    documentId,
+                    update: Array.from(awarenessUpdate),
+                });
+            }
 
             // 6. Send current Y.Doc state to the joining client
             const update = Y.encodeStateAsUpdate(ydoc);

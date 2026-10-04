@@ -1,0 +1,68 @@
+/*
+ * CollaborationCaret v3 (@tiptap/extension-collaboration-caret ^3.x)
+ * renders elements with these exact class names from its default `render` function.
+ * The underlying yCursorPlugin (y-tiptap) also adds .ProseMirror-yjs-cursor
+ * and .ProseMirror-yjs-selection for the raw decoration layer.
+ */
+
+/* ---- Caret line (the blinking vertical bar) ---- */
+.collaboration-carets__caret {
+    border-left: 2px solid;
+    /* color is set inline via style="border-color: …" */
+    border-right: 0;
+    margin-left: -1px;
+    margin-right: -1px;
+    pointer-events: none;
+    position: relative;
+    word-break: normal;
+    display: inline-block;
+}
+
+/* ---- User name label that floats above the caret ---- */
+.collaboration-carets__label {
+    border-radius: 4px 4px 4px 0;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    left: -1px;
+    line-height: normal;
+    padding: 3px 6px;
+    position: absolute;
+    top: -1.4em;
+    user-select: none;
+    white-space: nowrap;
+    /* background-color is set inline via style="background-color: …" */
+}
+
+/* ---- Remote text selection highlight ---- */
+.ProseMirror-yjs-selection {
+    background-color: rgba(99, 102, 241, 0.2);
+    border-radius: 2px;
+}
+
+.presence-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.presence-user {
+    width: 32px;
+    height: 32px;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #6366f1;
+    color: white;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    border: 2px solid #1f1f23;
+
+    cursor: pointer;
+}

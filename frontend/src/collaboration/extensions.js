@@ -2,23 +2,47 @@ import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 
+const CURSOR_COLORS = [
+  "#6366f1", // Indigo
+  "#ec4899", // Pink
+  "#10b981", // Emerald
+  "#f59e0b", // Amber
+  "#8b5cf6", // Purple
+  "#06b6d4", // Cyan
+  "#f97316", // Orange
+  "#14b8a6", // Teal
+];
+
+export function getUserColor(userId) {
+  if (!userId) return CURSOR_COLORS[0];
+  const str = String(userId);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+  }
+  return CURSOR_COLORS[Math.abs(hash) % CURSOR_COLORS.length];
+}
+
 export function createCollaborativeExtensions(
   ydoc,
   awareness,
   user
 ) {
-  return [StarterKit.configure({ undoRedo: false }),
+  const userColor = getUserColor(user?._id);
 
-  Collaboration.configure({ document: ydoc }),
+  return [
+    StarterKit.configure({ undoRedo: false }),
 
-  CollaborationCaret.configure({
-    provider: { awareness },
+    Collaboration.configure({ document: ydoc }),
 
-    user: {
-      id: user?._id,
-      name: user?.name || "Anonymous",
-      color: "#6366f1",
-    },
-  }),
+    CollaborationCaret.configure({
+      provider: { awareness },
+
+      user: {
+        id: user?._id,
+        name: user?.name || "Anonymous",
+        color: userColor,
+      },
+    }),
   ];
-}
+}

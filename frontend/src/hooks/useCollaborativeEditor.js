@@ -2,12 +2,9 @@ import { useEffect, useRef, useMemo } from "react";
 import { useEditor } from "@tiptap/react";
 
 import { createYDoc } from "../collaboration/ydoc";
-import {
-  createAwareness,
-  destroyAwareness,
-} from "../collaboration/awareness";
+import { createAwareness } from "../collaboration/awareness";
 
-import { createCollaborativeExtensions } from "../collaboration/extensions";
+import { createCollaborativeExtensions, getUserColor } from "../collaboration/extensions";
 import { createSocketProvider } from "../collaboration/socketProvider";
 
 import socket from "../services/socket";
@@ -39,6 +36,16 @@ export default function useCollaborativeEditor(documentId) {
     [ydoc]
   );
 
+  // Diagnostic: log awareness states on every change
+  useEffect(() => {
+    if (!awareness) return;
+    const onUpdate = () => {
+      console.log("👀 AWARENESS STATES:", awareness.getStates());
+    };
+    awareness.on("update", onUpdate);
+    return () => awareness.off("update", onUpdate);
+  }, [awareness]);
+
 
 
   /*
@@ -51,9 +58,14 @@ export default function useCollaborativeEditor(documentId) {
 
     if (!user || !awareness) return;
 
+    if (awareness.getLocalState() === null) {
+      awareness.setLocalState({});
+    }
+
     awareness.setLocalStateField("user", {
       id: user._id,
       name: user.name,
+      color: getUserColor(user._id),
     });
 
   }, [user, awareness]);
@@ -114,6 +126,7 @@ export default function useCollaborativeEditor(documentId) {
         awareness,
         user
       ),
+      autofocus: "end",
     },
     [
       ydoc,
@@ -127,7 +140,7 @@ export default function useCollaborativeEditor(documentId) {
 
   /*
    * ---------------------------------------------
-   * 7. Editor cleanup
+   * 6. Editor cleanup
    * ---------------------------------------------
    */
 
@@ -143,24 +156,6 @@ export default function useCollaborativeEditor(documentId) {
 
   }, [editor]);
 
-
-  /*
-   * ---------------------------------------------
-   * 8. Awareness cleanup
-   * ---------------------------------------------
-   */
-
-  useEffect(() => {
-
-    return () => {
-
-      destroyAwareness(
-        awareness
-      );
-
-    };
-
-  }, [awareness]);
 
 
   return {

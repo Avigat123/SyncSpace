@@ -1,8 +1,10 @@
 import { activeUsers } from "../store.js";
+import { getAwareness } from "../awarenessStore.js";
+import { removeAwarenessStates, encodeAwarenessUpdate } from "y-protocols/awareness";
 
 export default function disconnect(io, socket) {
 
-    return function (reason) {
+    return async function (reason) {
 
         const documentId = socket.documentId;
 
@@ -14,6 +16,27 @@ export default function disconnect(io, socket) {
         );
 
         if (!documentId) return;
+
+        // Propagate awareness removal if this socket had associated clientIDs
+        if (socket.awarenessClientIds && socket.awarenessClientIds.size > 0) {
+            try {
+                const awareness = await getAwareness(documentId);
+                const clientIds = Array.from(socket.awarenessClientIds);
+                removeAwarenessStates(awareness, clientIds, "disconnect");
+                const removalUpdate = encodeAwarenessUpdate(awareness, clientIds);
+                io.to(documentId).emit("awareness-update", {
+                    documentId,
+                    update: Array.from(removalUpdate),
+                });
+                console.log("[AWARENESS REMOVED ON DISCONNECT]", {
+                    documentId,
+                    socketId: socket.id,
+                    clientIds,
+                });
+            } catch (err) {
+                console.error("[disconnect awareness error]:", err);
+            }
+        }
 
         const users = activeUsers.get(documentId);
 

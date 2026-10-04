@@ -1,5 +1,9 @@
-﻿import * as Y from "yjs";
-import { encodeAwarenessUpdate, applyAwarenessUpdate } from "y-protocols/awareness";
+import * as Y from "yjs";
+import {
+    encodeAwarenessUpdate,
+    applyAwarenessUpdate,
+    removeAwarenessStates,
+} from "y-protocols/awareness";
 
 export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     let destroyed = false;
@@ -50,14 +54,30 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
 
     socket.on("yjs-update", handleRemoteUpdate);
 
-    // 4. Join the document room.
-    //    Re-join automatically after a reconnect (new socket.id = new room membership).
+    // --------------------------------------------------
+    // 4. Join the document room & request initial awareness
+    // --------------------------------------------------
     function joinRoom() {
         if (destroyed) return;
+
         socket.emit("join-document", documentId);
+
+        // Request current awareness state from any existing clients in the room
+        console.log("[AWARENESS SYNC REQUEST]", {
+            documentId,
+            socketId: socket.id,
+            clientId: awareness.clientID,
+        });
+        socket.emit("awareness-sync-request", { documentId });
+
+        // Send our current presence after joining the room if available
+        setTimeout(() => {
+            sendInitialAwareness();
+        }, 50);
     }
 
     joinRoom();
+
     socket.on("connect", joinRoom);
 
 
@@ -101,6 +121,7 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
 
         socket.emit("awareness-update", {
             documentId,
+            clientID: awareness.clientID,
             update: Array.from(update),
         });
     };
@@ -110,9 +131,64 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         handleAwarenessUpdate
     );
 
+    const sendInitialAwareness = () => {
+        if (destroyed) return;
+
+        const localState = awareness.getLocalState();
+        if (!localState || Object.keys(localState).length === 0) return;
+
+        const localClientId = awareness.clientID;
+
+        const update = encodeAwarenessUpdate(
+            awareness,
+            [localClientId]
+        );
+
+        socket.emit("awareness-update", {
+            documentId,
+            clientID: localClientId,
+            update: Array.from(update),
+        });
+
+        console.log(
+            "🟢 [AWARENESS INITIAL SENT]",
+            localState
+        );
+    };
 
     // --------------------------------------------------
-    // 6. Receive remote Awareness from server
+    // 6. Handle awareness sync request from newly joined clients
+    // --------------------------------------------------
+    const handleAwarenessSyncRequest = ({ targetSocketId }) => {
+        if (destroyed) return;
+
+        const localState = awareness.getLocalState();
+        if (!localState || Object.keys(localState).length === 0) return;
+
+        const update = encodeAwarenessUpdate(
+            awareness,
+            [awareness.clientID]
+        );
+
+        console.log("[AWARENESS SYNC RESPONSE]", {
+            documentId,
+            targetSocketId,
+            clientId: awareness.clientID,
+            state: localState,
+            updateBytes: update.length,
+        });
+
+        socket.emit("awareness-sync-response", {
+            documentId,
+            targetSocketId,
+            update: Array.from(update),
+        });
+    };
+
+    socket.on("awareness-sync-request", handleAwarenessSyncRequest);
+
+    // --------------------------------------------------
+    // 7. Receive remote Awareness from server
     // --------------------------------------------------
 
     const handleRemoteAwarenessUpdate = ({
@@ -146,10 +222,17 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         handleRemoteAwarenessUpdate
     );
 
-    // 7. Cleanup -- remove all listeners so they do not leak across providers.
+    // 8. Cleanup -- remove all listeners so they do not leak across providers.
     function destroy() {
         if (destroyed) return;
         destroyed = true;
+
+        // Cleanly remove our local awareness state so peers remove our cursor immediately
+        try {
+            removeAwarenessStates(awareness, [awareness.clientID], "local");
+        } catch {
+            // Ignore if awareness was already destroyed
+        }
 
         ydoc.off("update", handleLocalUpdate);
         socket.off("sync-document", handleInitialSync);
@@ -157,8 +240,9 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         socket.off("connect", joinRoom);
         awareness.off("update", handleAwarenessUpdate);
         socket.off("awareness-update", handleRemoteAwarenessUpdate);
+        socket.off("awareness-sync-request", handleAwarenessSyncRequest);
     }
 
     return { awareness, destroy };
-
 }
+
