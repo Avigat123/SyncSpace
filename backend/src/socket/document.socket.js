@@ -4,6 +4,7 @@ import disconnect from "./handlers/disconnect.js";
 import CursorMove from "./handlers/CursorMove.js";
 import typing from "./handlers/typing.js";
 import syncYjs from "./handlers/syncYjs.js";
+import syncAwareness from "./handlers/syncAwareness.js";
 // import restoreVersion from "./handlers/restoreVersion.js";
 
 export default function registerDocumentHandlers(io, socket) {
@@ -32,6 +33,11 @@ export default function registerDocumentHandlers(io, socket) {
     //     "restore-version",
     //     restoreVersion(io, socket)
     // );
+
+    socket.on(
+        "awareness-update",
+        syncAwareness(io, socket)
+    );
 
     socket.on(
         "disconnect",
