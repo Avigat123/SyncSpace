@@ -38,12 +38,12 @@ export default function editDocument(io, socket) {
                     await Version.create({
                         document: document._id,
                         title: document.title,
-                        content: document.content,
+                        content: document.content || "",
                         editedBy: socket.user._id,
                     });
 
                     // Update the document
-                    document.content = content;
+                    document.content = content || "";
 
                     await document.save();
                 }

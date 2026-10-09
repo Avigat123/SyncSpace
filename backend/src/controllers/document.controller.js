@@ -5,6 +5,8 @@ import Document from "../models/document.model.js";
 import Version from "../models/version.model.js";
 import ApiError from "../utils/ApiError.js";
 import { getIO } from "../socket/socketInstance.js";
+import { createVersion } from "../services/version.service.js";
+import { getYDoc } from "../socket/yjsStore.js";
 
 export const createDocument = asyncHandler(async (req, res) => {
 
@@ -175,5 +177,22 @@ export const restoreVersion = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: "Document restored successfully",
+    });
+});
+
+export const createDocumentVersion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const ydoc = await getYDoc(id);
+
+    const version = await createVersion(
+        id,
+        ydoc,
+        req.user._id
+    );
+
+    res.status(201).json({
+        success: true,
+        version,
     });
 });

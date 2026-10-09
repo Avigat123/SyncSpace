@@ -63,11 +63,14 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         socket.emit("join-document", documentId);
 
         // Request current awareness state from any existing clients in the room
-        console.log("[AWARENESS SYNC REQUEST]", {
-            documentId,
-            socketId: socket.id,
-            clientId: awareness.clientID,
-        });
+
+        //needed for debugging but fixed now 
+
+        // console.log("[AWARENESS SYNC REQUEST]", {
+        //     documentId,
+        //     socketId: socket.id,
+        //     clientId: awareness.clientID,
+        // });
         socket.emit("awareness-sync-request", { documentId });
 
         // Send our current presence after joining the room if available
@@ -170,13 +173,15 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
             [awareness.clientID]
         );
 
-        console.log("[AWARENESS SYNC RESPONSE]", {
-            documentId,
-            targetSocketId,
-            clientId: awareness.clientID,
-            state: localState,
-            updateBytes: update.length,
-        });
+        //needed for debugging but fixed now
+
+        // console.log("[AWARENESS SYNC RESPONSE]", {
+        //     documentId,
+        //     targetSocketId,
+        //     clientId: awareness.clientID,
+        //     state: localState,
+        //     updateBytes: update.length,
+        // });
 
         socket.emit("awareness-sync-response", {
             documentId,

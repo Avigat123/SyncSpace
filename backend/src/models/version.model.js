@@ -10,7 +10,12 @@ const versionSchema = new mongoose.Schema(
 
         content: {
             type: String,
-            required: true,
+            default: "",
+        },
+
+        yjsState: {
+            type: Buffer,
+            default: null,
         },
 
         title: {

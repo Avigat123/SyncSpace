@@ -13,6 +13,8 @@ import {
     getDocumentVersions,
 } from "../controllers/document.controller.js";
 
+import { createDocumentVersion } from "../controllers/document.controller.js";
+
 import checkDocumentPermission from "../middlewares/documentPermission.middleware.js";
 
 const router = express.Router();
@@ -60,6 +62,12 @@ router.post(
     "/:documentId/history/:versionId/restore",
     checkDocumentPermission("editor"),
     restoreVersion
+);
+
+router.post(
+    "/:id/versions",
+    checkDocumentPermission("editor"),
+    createDocumentVersion
 );
 
 export default router;

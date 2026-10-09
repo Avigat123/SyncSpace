@@ -95,4 +95,4 @@ export default function joinDocument(io, socket) {
 
     };
 
-}
+}

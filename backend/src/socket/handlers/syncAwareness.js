@@ -23,13 +23,15 @@ export default function syncAwareness(io, socket) {
         socket
       );
 
-      console.log("[AWARENESS BROADCAST]", {
-        documentId,
-        socketId: socket.id,
-        clientID: clientID ?? "unknown",
-        updateBytes: binaryUpdate.length,
-        roomSize: io.sockets.adapter.rooms.get(documentId)?.size ?? 0,
-      });
+      // needed for debugging but fixed now
+
+      // console.log("[AWARENESS BROADCAST]", {
+      //   documentId,
+      //   socketId: socket.id,
+      //   clientID: clientID ?? "unknown",
+      //   updateBytes: binaryUpdate.length,
+      //   roomSize: io.sockets.adapter.rooms.get(documentId)?.size ?? 0,
+      // });
 
       socket.to(documentId).emit("awareness-update", {
         documentId,
@@ -50,10 +52,12 @@ export function syncAwarenessRequest(io, socket) {
     try {
       if (!documentId) return;
 
-      console.log("[AWARENESS SYNC REQUEST forwarded]", {
-        documentId,
-        fromSocket: socket.id,
-      });
+      // needed for debugging but fixed now
+
+      // console.log("[AWARENESS SYNC REQUEST forwarded]", {
+      //   documentId,
+      //   fromSocket: socket.id,
+      // });
 
       socket.to(documentId).emit("awareness-sync-request", {
         documentId,
@@ -69,13 +73,14 @@ export function syncAwarenessResponse(io, socket) {
   return function ({ documentId, targetSocketId, update }) {
     try {
       if (!documentId || !targetSocketId || !update) return;
-
-      console.log("[AWARENESS SYNC RESPONSE delivered]", {
-        documentId,
-        fromSocket: socket.id,
-        targetSocketId,
-        updateBytes: update.length,
-      });
+      
+      // console.log("[AWARENESS SYNC RESPONSE delivered]", {
+      
+      //   documentId,
+      //   fromSocket: socket.id,
+      //   targetSocketId,
+      //   updateBytes: update.length,
+      // });
 
       io.to(targetSocketId).emit("awareness-update", {
         documentId,
@@ -86,4 +91,4 @@ export function syncAwarenessResponse(io, socket) {
     }
   };
 }
-
+
