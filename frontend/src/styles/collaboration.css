@@ -66,3 +66,48 @@
 
     cursor: pointer;
 }
+
+
+/* ---- Presence indicator container ---- */
+.presence-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ---- Avatar group ---- */
+.presence-avatars {
+    display: flex;
+    align-items: center;
+    padding-left: 4px;
+}
+
+/* ---- Individual user avatar ---- */
+.presence-user {
+    width: 34px;
+    height: 34px;
+    border: 2px solid #1f1f23;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-left: -4px;
+    cursor: default;
+}
+
+/* ---- Additional users beyond the first four ---- */
+.presence-overflow {
+    background-color: #52525b;
+    font-size: 11px;
+}
+
+/* ---- Online user count ---- */
+.presence-count {
+    color: #a1a1aa;
+    font-size: 13px;
+    white-space: nowrap;
+}

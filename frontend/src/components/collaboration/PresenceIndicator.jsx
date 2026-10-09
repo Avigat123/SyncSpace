@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getUserColor } from "../../collaboration/extensions";
 
 export default function PresenceIndicator({ awareness }) {
     const [users, setUsers] = useState([]);
@@ -7,17 +8,26 @@ export default function PresenceIndicator({ awareness }) {
         if (!awareness) return;
 
         const updateUsers = () => {
-            const states = Array.from(awareness.getStates().values());
+            const uniqueUsers = new Map();
 
-            const collaborators = states
-                .map((state) => state.user)
-                .filter(Boolean);
+            awareness.getStates().forEach((state) => {
+                const user = state.user;
+                if (!user) return;
 
-            setUsers(collaborators);
+                const id = String(user.id || user._id || "");
+                if (!id) return;
+
+                uniqueUsers.set(id, {
+                    id,
+                    name: user.name || "Anonymous",
+                    color: getUserColor(id),
+                });
+            });
+
+            setUsers(Array.from(uniqueUsers.values()));
         };
 
         updateUsers();
-
         awareness.on("change", updateUsers);
 
         return () => {
@@ -25,18 +35,36 @@ export default function PresenceIndicator({ awareness }) {
         };
     }, [awareness]);
 
+    const visibleUsers = users.slice(0, 4);
+    const remaining = users.length - visibleUsers.length;
+
     return (
         <div className="presence-indicator">
-            {users.map((user) => (
-                <div
-                    className="presence-user"
-                    key={user.id}
-                    title={user.name}
-                    style={{ backgroundColor: user.color || "#6366f1" }}
-                >
-                    {user.name?.charAt(0).toUpperCase()}
-                </div>
-            ))}
+            <div className="presence-avatars">
+                {visibleUsers.map((user) => (
+                    <div
+                        className="presence-user"
+                        key={user.id}
+                        title={user.name}
+                        style={{ backgroundColor: user.color }}
+                    >
+                        {user.name.charAt(0).toUpperCase()}
+                    </div>
+                ))}
+
+                {remaining > 0 && (
+                    <div
+                        className="presence-user presence-overflow"
+                        title={`${remaining} more collaborators`}
+                    >
+                        +{remaining}
+                    </div>
+                )}
+            </div>
+
+            <span className="presence-count">
+                {users.length} {users.length === 1 ? "person" : "people"} online
+            </span>
         </div>
     );
 }
