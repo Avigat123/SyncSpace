@@ -7,7 +7,7 @@ import {
 
 export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     let destroyed = false;
-
+    let generation = null;
     const remoteOrigin = Symbol("remote");
 
     /*
@@ -20,9 +20,13 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         if (destroyed) return;
         if (origin === remoteOrigin) return;
 
+        // Don't send edits until the server has supplied the generation.
+        if (generation === null) return;
+
         socket.emit("sync-yjs", {
             documentId,
             update: Array.from(update),
+            generation,
         });
     };
 
@@ -40,6 +44,16 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     };
 
     socket.on("sync-document", handleInitialSync);
+
+    const handleDocumentRestored = (payload) => {
+        if (destroyed) return;
+        if (payload.documentId !== documentId) return;
+
+        // DocumentPage will remount the editor.
+        // The new provider will request state through join-document.
+    };
+
+    socket.on("document-restored", handleDocumentRestored);
 
     /*
      * --------------------------------------------------
@@ -196,9 +210,7 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     // 7. Receive remote Awareness from server
     // --------------------------------------------------
 
-    const handleRemoteAwarenessUpdate = ({
-        update,
-    }) => {
+    const handleRemoteAwarenessUpdate = ({ update }) => {
 
         if (destroyed) return;
 
@@ -227,7 +239,22 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         handleRemoteAwarenessUpdate
     );
 
-    // 8. Cleanup -- remove all listeners so they do not leak across providers.
+    // --------------------------------------------------
+    // 8. Receive document generation from server
+    // --------------------------------------------------
+
+    const handleDocumentGeneration = (payload) => {
+        if (destroyed) return;
+        if (payload.documentId !== documentId) return;
+
+        generation = payload.generation;
+
+        console.log("[Yjs] Document generation:", generation);
+    };
+
+    socket.on("document-generation", handleDocumentGeneration);
+
+    // 9. Cleanup -- remove all listeners so they do not leak across providers.
     function destroy() {
         if (destroyed) return;
         destroyed = true;
@@ -246,6 +273,7 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         awareness.off("update", handleAwarenessUpdate);
         socket.off("awareness-update", handleRemoteAwarenessUpdate);
         socket.off("awareness-sync-request", handleAwarenessSyncRequest);
+        socket.off("document-restored", handleDocumentRestored);
     }
 
     return { awareness, destroy };

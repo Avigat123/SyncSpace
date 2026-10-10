@@ -4,7 +4,7 @@ import ApiError from "../utils/ApiError.js";
 
 const checkDocumentPermission = (requiredRole) => {
     return asyncHandler(async (req, res, next) => {
-        const {id} = req.params;
+        const id = req.params.id || req.params.documentId;
         const document = await Document.findById(id);
 
         if(!document){

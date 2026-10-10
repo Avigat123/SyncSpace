@@ -7,6 +7,7 @@ import ApiError from "../utils/ApiError.js";
 import { getIO } from "../socket/socketInstance.js";
 import { createVersion } from "../services/version.service.js";
 import { getYDoc } from "../socket/yjsStore.js";
+import { restoreVersionState } from "../services/versionRestore.service.js";
 
 export const createDocument = asyncHandler(async (req, res) => {
 
@@ -139,46 +140,34 @@ export const getDocumentVersions = asyncHandler(async (req, res) => {
 });
 
 
+
 export const restoreVersion = asyncHandler(async (req, res) => {
-    const version = await Version.findById(req.params.versionId);
+    const documentId = req.params.documentId || req.params.id;
+    const { versionId } = req.params;
 
-    if (!version) {
-        throw new ApiError(404, "Version not found");
-    }
-
-    const document = await Document.findById(req.params.documentId);
-
-    if (!document) {
-        throw new ApiError(404, "Document not found");
-    }
-
-    if (version.document.toString() !== document._id.toString()) {
-        throw new ApiError(
-            400,
-            "Version does not belong to this document"
-        );
-    }
-
-    document.content = version.content;
-    document.title = version.title;
-
-    await document.save();
+    const { document, generation } = await restoreVersionState(
+        documentId,
+        versionId
+    );
 
     const io = getIO();
 
-    io.to(document._id.toString()).emit(
-        "document-restored",
-        {
-            title: document.title,
-            content: document.content,
-        }
-    );
+    io.to(documentId).emit("document-restored", {
+        documentId,
+        title: document.title,
+        generation,
+    });
 
     res.status(200).json({
         success: true,
         message: "Document restored successfully",
+        document: {
+            _id: document._id,
+            title: document.title,
+        },
     });
 });
+
 
 export const createDocumentVersion = asyncHandler(async (req, res) => {
     const { id } = req.params;

@@ -4,6 +4,7 @@ import Document from "../../models/document.model.js";
 import { activeUsers } from "../store.js";
 import { getYDoc } from "../yjsStore.js";
 import { getAwareness } from "../awarenessStore.js";
+import { getDocumentGeneration } from "../store.js";
 
 export default function joinDocument(io, socket) {
 
@@ -41,6 +42,11 @@ export default function joinDocument(io, socket) {
 
             const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
             console.log(`[joinDocument] socket=${socket.id} joined docId=${documentId} roomSize=${roomSize}`);
+
+            socket.emit("document-generation", {
+                documentId,
+                generation: getDocumentGeneration(documentId),
+            });
 
             // 5. Awareness synchronization
             const awareness = await getAwareness(documentId);
