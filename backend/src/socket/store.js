@@ -38,3 +38,27 @@ export function incrementDocumentGeneration(documentId) {
 
     return nextGeneration;
 }
+
+
+/**
+ * Serializes database writes per document.
+ * Different documents can still be written concurrently.
+ */
+const documentWriteQueues = new Map();
+
+export function withDocumentWriteLock(documentId, operation) {
+    const previousWrite = documentWriteQueues.get(documentId) ?? Promise.resolve();
+
+    const currentWrite = previousWrite
+        .catch(() => { })
+        .then(operation);
+
+    documentWriteQueues.set(documentId, currentWrite);
+
+    return currentWrite.finally(() => {
+        // Remove only if this is still the latest queued write.
+        if (documentWriteQueues.get(documentId) === currentWrite) {
+            documentWriteQueues.delete(documentId);
+        }
+    });
+}

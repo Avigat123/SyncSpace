@@ -1,12 +1,22 @@
 
 import * as Y from "yjs";
 import Document from "../models/document.model.js";
+import { withDocumentWriteLock } from "../socket/store.js";
+import { getDocumentGeneration } from "../socket/store.js";
 
-export async function saveYDoc(documentId, ydoc) {
-    const state = Y.encodeStateAsUpdate(ydoc);
+export async function saveYDoc(documentId, ydoc, generation) {
+    return withDocumentWriteLock(documentId, async () => {
+        // Check generation when this operation reaches the queue.
+        if (generation !== getDocumentGeneration(documentId)) {
+            console.log("[saveYDoc] Skipped stale save:", documentId);
+            return;
+        }
 
-    await Document.findByIdAndUpdate(documentId, {
-        yjsState: Buffer.from(state),
+        const state = Y.encodeStateAsUpdate(ydoc);
+
+        await Document.findByIdAndUpdate(documentId, {
+            yjsState: Buffer.from(state),
+        });
     });
 }
 

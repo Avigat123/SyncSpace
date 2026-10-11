@@ -10,6 +10,21 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     let generation = null;
     const remoteOrigin = Symbol("remote");
 
+    // --------------------------------------------------
+    // 0. Receive document generation from server
+    // --------------------------------------------------
+
+    const handleDocumentGeneration = (payload) => {
+        if (destroyed) return;
+        if (payload.documentId !== documentId) return;
+
+        generation = payload.generation;
+
+        console.log("[Yjs] Document generation:", generation);
+    };
+
+    socket.on("document-generation", handleDocumentGeneration);
+
     /*
      * --------------------------------------------------
      * 1. Send local Yjs updates to the backend
@@ -239,22 +254,8 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         handleRemoteAwarenessUpdate
     );
 
-    // --------------------------------------------------
-    // 8. Receive document generation from server
-    // --------------------------------------------------
 
-    const handleDocumentGeneration = (payload) => {
-        if (destroyed) return;
-        if (payload.documentId !== documentId) return;
-
-        generation = payload.generation;
-
-        console.log("[Yjs] Document generation:", generation);
-    };
-
-    socket.on("document-generation", handleDocumentGeneration);
-
-    // 9. Cleanup -- remove all listeners so they do not leak across providers.
+    // 8. Cleanup -- remove all listeners so they do not leak across providers.
     function destroy() {
         if (destroyed) return;
         destroyed = true;
@@ -274,6 +275,7 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         socket.off("awareness-update", handleRemoteAwarenessUpdate);
         socket.off("awareness-sync-request", handleAwarenessSyncRequest);
         socket.off("document-restored", handleDocumentRestored);
+        socket.off("document-generation", handleDocumentGeneration);
     }
 
     return { awareness, destroy };
