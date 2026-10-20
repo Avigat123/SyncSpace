@@ -21,11 +21,11 @@ export default function joinDocument(io, socket) {
 
             // 2. Check ownership / collaborator access BEFORE initializing ydoc
             const isOwner =
-                document.owner.toString() === socket.user._id.toString();
+                (document.owner?._id || document.owner).toString() === socket.user._id.toString();
 
             if (!isOwner) {
                 const collaborator = document.collaborators.find(
-                    c => c.user.toString() === socket.user._id.toString()
+                    c => (c.user?._id || c.user).toString() === socket.user._id.toString()
                 );
 
                 if (!collaborator) {

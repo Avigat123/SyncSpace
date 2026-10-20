@@ -22,7 +22,10 @@ export const getUserDocuments = async (userId) => {
 };
 
 export const getDocumentById = async (documentId) => {
-    const document = await Document.findById(documentId);
+    const document = await Document.findById(documentId).populate(
+        "collaborators.user",
+        "name email"
+    );
 
     if (!document) {
         throw new ApiError(404, "Document not found");

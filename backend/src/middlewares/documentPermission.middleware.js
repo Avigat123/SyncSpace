@@ -11,14 +11,14 @@ const checkDocumentPermission = (requiredRole) => {
             throw new ApiError(404, "Document not found");
         }
         
-        if(document.owner.toString() === req.user._id.toString()){
+        if((document.owner?._id || document.owner).toString() === req.user._id.toString()){
             req.document = document;
             return next();
         }
 
         //If the user isn't the owner, look in the collaborators array.
         const collaborator = document.collaborators.find(
-            c => c.user.toString() === req.user._id.toString()
+            c => (c.user?._id || c.user).toString() === req.user._id.toString()
         );  
 
         //If no collaborator, then no access

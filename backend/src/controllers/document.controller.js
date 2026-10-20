@@ -82,17 +82,23 @@ export const shareDocument = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Document not found");
     }
 
-    if (document.owner.toString() !== req.user._id.toString()) {
+    const ownerId = (document.owner?._id || document.owner).toString();
+
+    if (ownerId !== req.user._id.toString()) {
         throw new ApiError(403, "Only the owner can share this document");
     }
 
-    const user = await User.findOne({ email });
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (!user) {
         throw new ApiError(404, "User not found");
     }
 
-    if (user._id.toString() === document.owner.toString()) {
+    if (user._id.toString() === ownerId) {
         throw new ApiError(400, "Owner already has access");
     }
 
@@ -101,7 +107,7 @@ export const shareDocument = asyncHandler(async (req, res) => {
     }
 
     const alreadyCollaborator = document.collaborators.find(
-        collaborator => collaborator.user.toString() === user._id.toString()
+        collaborator => (collaborator.user?._id || collaborator.user).toString() === user._id.toString()
     );
 
     if (alreadyCollaborator) {
@@ -114,6 +120,11 @@ export const shareDocument = asyncHandler(async (req, res) => {
     });
 
     await document.save();
+
+    await document.populate(
+        "collaborators.user",
+        "name email"
+    );
 
     res.status(200).json({
         success: true,
