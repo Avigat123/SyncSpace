@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-    getDocuments,
-    createDocument,
-} from "../api/document.js";
+import { getDocuments, createDocument } from "../api/document.js";
+import useAuth from "../hooks/useAuth.js";
 
 function DashboardPage() {
     const navigate = useNavigate();
-
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [creating, setCreating] = useState(false);
+    const { user } = useAuth();
+    const userId = user?._id;
 
     useEffect(() => {
         const fetchDocuments = async () => {
@@ -51,23 +50,14 @@ function DashboardPage() {
         <div style={{ maxWidth: 800, margin: "40px auto" }}>
             <h1>SyncSpace Dashboard</h1>
 
-            <button
-                onClick={handleCreateDocument}
-                disabled={creating}
-            >
+            <button onClick={handleCreateDocument} disabled={creating}>
                 {creating ? "Creating..." : "New Document"}
             </button>
 
-            {error && (
-                <p style={{ color: "red" }}>
-                    {error}
-                </p>
-            )}
+            {error && (<p style={{ color: "red" }}>{error}</p>)}
 
             <div style={{ marginTop: 30 }}>
-                {documents.length === 0 ? (
-                    <p>No documents yet.</p>
-                ) : (
+                {documents.length === 0 ? (<p>No documents yet.</p>) : (
                     documents.map((document) => (
                         <div
                             key={document._id}
@@ -82,13 +72,8 @@ function DashboardPage() {
                             }}
                         >
                             <h3>{document.title}</h3>
-
-                            <small>
-                                Updated:{" "}
-                                {new Date(
-                                    document.updatedAt
-                                ).toLocaleString()}
-                            </small>
+                            <p>{document.owner == userId ? "Owned by you" : "Shared with you"}</p>
+                            <small>Updated: {new Date(document.updatedAt).toLocaleString()}</small>
                         </div>
                     ))
                 )}
