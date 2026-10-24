@@ -201,11 +201,32 @@ export const createDocumentVersion = asyncHandler(async (req, res) => {
 export const removeCollaborator = asyncHandler(async (req, res) => {
     const { id, collaboratorId } = req.params;
 
-    const document = await documentService.removeCollaborator(id, collaboratorId);
+    // 1. Remove access from the database first.
+    await documentService.removeCollaborator(id, collaboratorId);
+
+    // 2. Find active sockets for this collaborator on this document.
+    const io = getIO();
+    const documentRoom = io.sockets.adapter.rooms.get(id);
+
+    if (documentRoom) {
+        for (const socketId of documentRoom) {
+            const activeSocket = io.sockets.sockets.get(socketId);
+
+            if (activeSocket && activeSocket.user._id.toString() === collaboratorId) {
+                // Tell frontend
+                activeSocket.emit("access-revoked", {
+                    documentId: id,
+                    message: "Your access to this document has been removed.",
+                });
+
+                // Disconnect collaborator's active socket.
+                activeSocket.disconnect(true);
+            }
+        }
+    }
 
     res.status(200).json({
         success: true,
         message: "Collaborator access removed",
-        document,
     });
 });

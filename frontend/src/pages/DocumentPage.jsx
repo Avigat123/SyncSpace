@@ -19,6 +19,7 @@ function DocumentPage() {
     const [shareRole, setShareRole] = useState("viewer");
     const [sharing, setSharing] = useState(false);
     const [shareMessage, setShareMessage] = useState("");
+    const [accessRevoked, setAccessRevoked] = useState(false);
 
     const { user } = useAuth();
 
@@ -38,6 +39,20 @@ function DocumentPage() {
 
         return () => {
             socket.off("document-restored", handleDocumentRestored);
+        };
+    }, [documentId]);
+
+    useEffect(() => {
+        const handleAccessRevoked = (payload) => {
+            if (payload.documentId !== documentId) return;
+
+            setAccessRevoked(true);
+        };
+
+        socket.on("access-revoked", handleAccessRevoked);
+
+        return () => {
+            socket.off("access-revoked", handleAccessRevoked);
         };
     }, [documentId]);
 
@@ -103,6 +118,17 @@ function DocumentPage() {
 
     if (!document) {
         return <div>Document not found.</div>;
+    }
+
+    if (accessRevoked) {
+        return (
+            <div>
+                <h2>Access revoked</h2>
+                <p>
+                    Your access to this document has been removed.
+                </p>
+            </div>
+        );
     }
 
     return (
