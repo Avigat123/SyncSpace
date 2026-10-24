@@ -14,6 +14,7 @@ function DocumentPage() {
 
     const [editorKey, setEditorKey] = useState(0);
     const [title, setTitle] = useState("");
+    const [originalTitle, setOriginalTitle] = useState("");
 
     const [shareEmail, setShareEmail] = useState("");
     const [shareRole, setShareRole] = useState("viewer");
@@ -24,6 +25,8 @@ function DocumentPage() {
 
     const [savingTitle, setSavingTitle] = useState(false);
     const [titleMessage, setTitleMessage] = useState("");
+
+
 
 
     const { user } = useAuth();
@@ -73,6 +76,7 @@ function DocumentPage() {
     useEffect(() => {
         if (document) {
             setTitle(document.title);
+            setOriginalTitle(document.title);
         }
     }, [document]);
 
@@ -209,12 +213,21 @@ function DocumentPage() {
             });
 
             await refreshDocument();
+            setOriginalTitle(trimmedTitle);
+            setTitle(trimmedTitle);
 
             setTitleMessage("Title updated successfully");
         } catch (err) {
             setTitleMessage(err.message || "Failed to update title");
         } finally {
             setSavingTitle(false);
+        }
+    };
+
+    const handleTitleKeyDown = (event) => {
+        if (event.key === "Escape") {
+            setTitle(originalTitle);
+            setTitleMessage("");
         }
     };
 
@@ -249,6 +262,7 @@ function DocumentPage() {
                         type="text"
                         value={title}
                         onChange={(event) => setTitle(event.target.value)}
+                        onKeyDown={handleTitleKeyDown}
                         placeholder="Document title"
                         maxLength={100}
                         required
