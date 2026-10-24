@@ -25,6 +25,15 @@ function DocumentPage() {
 
     const isOwner = document?.owner?.toString() === user?._id?.toString();
 
+    const currentCollaborator = document?.collaborators?.find(
+        (collaborator) => {
+            const collaboratorUserId = collaborator.user?._id ?? collaborator.user;
+            return collaboratorUserId?.toString() === user?._id?.toString();
+        }
+    );
+
+    const currentRole = isOwner ? "owner" : currentCollaborator?.role ?? "viewer";
+
     useEffect(() => {
         if (!documentId) return;
 
@@ -188,7 +197,11 @@ function DocumentPage() {
                 )}
             </div>
 
-            <Editor key={editorKey} documentId={documentId} />
+            <Editor
+                key={editorKey}
+                documentId={documentId}
+                role={currentRole}
+            />
         </div>
     );
 }

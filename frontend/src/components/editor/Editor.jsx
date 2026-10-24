@@ -2,8 +2,8 @@ import { EditorContent } from "@tiptap/react";
 import useCollaborativeEditor from "../../hooks/useCollaborativeEditor";
 import PresenceIndicator from "../collaboration/PresenceIndicator";
 
-export default function Editor({ documentId }) {
-  const { editor, awareness } = useCollaborativeEditor(documentId);
+export default function Editor({ documentId, role }) {
+  const { editor, awareness } = useCollaborativeEditor(documentId, role );
 
   if (!editor) {
     return <div>Loading editor...</div>;

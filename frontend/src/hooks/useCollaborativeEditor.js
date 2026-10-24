@@ -10,7 +10,7 @@ import { createSocketProvider } from "../collaboration/socketProvider";
 import socket from "../services/socket";
 import useAuth from "./useAuth";
 
-export default function useCollaborativeEditor(documentId) {
+export default function useCollaborativeEditor(documentId, role) {
 
   const { user } = useAuth();
 
@@ -89,12 +89,7 @@ export default function useCollaborativeEditor(documentId) {
       socket.connect();
     }
 
-    const provider = createSocketProvider({
-      socket,
-      ydoc,
-      awareness,
-      documentId,
-    });
+    const provider = createSocketProvider({ socket, ydoc, awareness, documentId });
 
     providerRef.current = provider;
 
@@ -121,17 +116,15 @@ export default function useCollaborativeEditor(documentId) {
 
   const editor = useEditor(
     {
-      extensions: createCollaborativeExtensions(
-        ydoc,
-        awareness,
-        user
-      ),
+      extensions: createCollaborativeExtensions(ydoc, awareness, user),
       autofocus: "end",
+      editable: role != "viewer"
     },
     [
       ydoc,
       awareness,
       user,
+      role
     ]
   );
 
@@ -156,11 +149,5 @@ export default function useCollaborativeEditor(documentId) {
 
   }, [editor]);
 
-
-
-  return {
-    editor,
-    ydoc,
-    awareness,
-  };
+  return { editor, ydoc, awareness };
 }
