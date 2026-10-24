@@ -114,21 +114,29 @@ export default function useCollaborativeEditor(documentId, role) {
    * ---------------------------------------------
    */
 
+
   const editor = useEditor(
     {
-      extensions: createCollaborativeExtensions(ydoc, awareness, user),
+      extensions: createCollaborativeExtensions(
+        ydoc,
+        awareness,
+        user
+      ),
       autofocus: "end",
-      editable: role != "viewer"
+      editable: role !== "viewer",
     },
     [
       ydoc,
       awareness,
       user,
-      role
     ]
   );
 
+  useEffect(() => {
+    if (!editor) return;
 
+    editor.setEditable(role !== "viewer");
+  }, [editor, role]);
 
 
   /*

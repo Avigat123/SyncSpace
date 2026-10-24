@@ -71,6 +71,25 @@ export const removeCollaborator = async (documentId, collaboratorId) => {
     return document;
 };
 
+export const updateCollaboratorRole = async (documentId, collaboratorId, role) => {
+    const document = await Document.findById(documentId);
+
+    if (!document) {
+        throw new ApiError(404, "Document not found");
+    }
+
+    const collaborator = document.collaborators.find((item) => item.user.toString() === collaboratorId);
+
+    if (!collaborator) {
+        throw new ApiError(404, "Collaborator not found");
+    }
+    collaborator.role = role;
+
+    await document.save();
+
+    return document;
+};
+
 export const deleteDocument = async (documentId) => {
     const document = await Document.findByIdAndDelete(documentId);
 

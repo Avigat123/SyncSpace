@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import Editor from "../components/editor/Editor";
 import useDocument from "../hooks/useDocument";
 import socket from "../services/socket";
-import { shareDocument, removeCollaborator } from "../api/document.js";
+import { shareDocument, removeCollaborator, updateCollaboratorRole } from "../api/document.js";
 import useAuth from "../hooks/useAuth.js";
 
 function DocumentPage() {
@@ -20,6 +20,8 @@ function DocumentPage() {
     const [sharing, setSharing] = useState(false);
     const [shareMessage, setShareMessage] = useState("");
     const [accessRevoked, setAccessRevoked] = useState(false);
+    const [roleOverride, setRoleOverride] = useState(null);
+
 
     const { user } = useAuth();
 
@@ -32,7 +34,7 @@ function DocumentPage() {
         }
     );
 
-    const currentRole = isOwner ? "owner" : currentCollaborator?.role ?? "viewer";
+    const currentRole = isOwner ? "owner" : roleOverride ?? currentCollaborator?.role ?? "viewer";
 
     useEffect(() => {
         if (!documentId) return;
@@ -70,6 +72,20 @@ function DocumentPage() {
             setTitle(document.title);
         }
     }, [document]);
+
+    useEffect(() => {
+        const handleRoleUpdated = (payload) => {
+            if (payload.documentId !== documentId) return;
+
+            setRoleOverride(payload.role);
+        };
+
+        socket.on("collaborator-role-updated", handleRoleUpdated);
+
+        return () => {
+            socket.off("collaborator-role-updated", handleRoleUpdated);
+        };
+    }, [documentId]);
 
     const handleShare = async (event) => {
         event.preventDefault();
@@ -114,6 +130,40 @@ function DocumentPage() {
             setShareMessage(
                 err.message || "Failed to remove collaborator"
             );
+        }
+    };
+
+    const handleRoleChange = async (collaboratorId, newRole) => {
+        const collaborator = document.collaborators.find((item) => item.user._id.toString() === collaboratorId.toString());
+
+        if (!collaborator) {
+            return;
+        }
+
+        const oldRole = collaborator.role;
+
+        if (oldRole === newRole) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Are you sure you want to change this collaborator's role from ${oldRole} to ${newRole}?`
+        );
+
+        if (!confirmed) {
+            await refreshDocument();
+            return;
+        }
+
+        setShareMessage("");
+
+        try {
+            const response = await updateCollaboratorRole(documentId, collaboratorId, newRole);
+            await refreshDocument();
+            setShareMessage(response.message);
+        } catch (err) {
+            await refreshDocument();
+            setShareMessage(err.message || "Failed to update role");
         }
     };
 
@@ -185,11 +235,14 @@ function DocumentPage() {
                         return (
                             <div key={key}>
                                 <p>{name || "Collaborator"} {email ? `(${email})` : ""}</p>
-                                <small>Role: {collaborator.role}</small>
-                                {isOwner && (
-                                    <button onClick={() => handleRemoveCollaborator(collaborator.user._id)}>
-                                        Remove access
-                                    </button>
+                                {isOwner ? (<select value={collaborator.role} onChange={(event) => handleRoleChange(collaborator.user._id, event.target.value)} >
+                                    <option value="viewer">Viewer</option>
+                                    <option value="editor">Editor</option>
+                                </select>
+                                ) : (<small>Role: {collaborator.role}</small>)}
+                                {isOwner && (<button onClick={() => handleRemoveCollaborator(collaborator.user._id)}>
+                                    Remove access
+                                </button>
                                 )}
                             </div>
                         );

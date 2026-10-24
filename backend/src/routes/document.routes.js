@@ -2,7 +2,7 @@ import express from "express";
 
 import authMiddleware from "../middlewares/auth.middleware.js";
 
-import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument, restoreVersion, getDocumentVersions, removeCollaborator } from "../controllers/document.controller.js";
+import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument, restoreVersion, getDocumentVersions, removeCollaborator, updateCollaboratorRole } from "../controllers/document.controller.js";
 
 import { createDocumentVersion } from "../controllers/document.controller.js";
 
@@ -46,6 +46,12 @@ router.delete(
     "/:id/collaborators/:collaboratorId",
     checkDocumentPermission("owner"),
     removeCollaborator
+);
+
+router.patch(
+    "/:id/collaborators/:collaboratorId",
+    checkDocumentPermission("owner"),
+    updateCollaboratorRole
 );
 
 // Version history

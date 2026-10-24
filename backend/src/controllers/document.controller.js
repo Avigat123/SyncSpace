@@ -230,3 +230,33 @@ export const removeCollaborator = asyncHandler(async (req, res) => {
         message: "Collaborator access removed",
     });
 });
+
+
+export const updateCollaboratorRole = asyncHandler(async (req, res) => {
+    const { id, collaboratorId } = req.params;
+    const { role } = req.body;
+    // Only Viewer and Editor roles are allowed.
+    if (!["viewer", "editor"].includes(role)) {
+        throw new ApiError(400, "Invalid role");
+    }
+    // 1. Update the collaborator's role in the database.
+    await documentService.updateCollaboratorRole(id, collaboratorId, role);
+
+    // 2. Notify the collaborator's active sockets.
+    const io = getIO();
+    const documentRoom = io.sockets.adapter.rooms.get(id);
+
+    if (documentRoom) {
+        for (const socketId of documentRoom) {
+            const activeSocket = io.sockets.sockets.get(socketId);
+            if (activeSocket && activeSocket.user._id.toString() === collaboratorId) {
+                activeSocket.emit("collaborator-role-updated", { documentId: id, role });
+            }
+        }
+    }
+
+    res.status(200).json({
+        success: true,
+        message: `Collaborator role updated to ${role}`,
+    });
+});

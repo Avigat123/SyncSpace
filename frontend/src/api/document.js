@@ -43,3 +43,9 @@ export const removeCollaborator = (documentId, collaboratorId) =>
     request(`/documents/${documentId}/collaborators/${collaboratorId}`, {
         method: "DELETE",
     });
+
+export const updateCollaboratorRole = (documentId, collaboratorId, role) =>
+    request(`/documents/${documentId}/collaborators/${collaboratorId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+    });
