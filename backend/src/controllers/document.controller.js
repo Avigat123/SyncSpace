@@ -47,11 +47,18 @@ export const getDocument = asyncHandler(async (req, res) => {
 });
 
 export const updateDocument = asyncHandler(async (req, res) => {
-
     const document = await documentService.updateDocument(
         req.params.id,
         req.body
     );
+
+    // Notify everyone currently viewing this document.
+    const io = getIO();
+
+    io.to(req.params.id).emit("document-title-updated", {
+        documentId: req.params.id,
+        title: document.title,
+    });
 
     res.json({
         success: true,

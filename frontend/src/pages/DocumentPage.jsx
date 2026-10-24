@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import Editor from "../components/editor/Editor";
 import useDocument from "../hooks/useDocument";
 import socket from "../services/socket";
-import { shareDocument, removeCollaborator, updateCollaboratorRole } from "../api/document.js";
+import { shareDocument, removeCollaborator, updateCollaboratorRole, updateDocument } from "../api/document.js";
 import useAuth from "../hooks/useAuth.js";
 
 function DocumentPage() {
@@ -21,6 +21,9 @@ function DocumentPage() {
     const [shareMessage, setShareMessage] = useState("");
     const [accessRevoked, setAccessRevoked] = useState(false);
     const [roleOverride, setRoleOverride] = useState(null);
+
+    const [savingTitle, setSavingTitle] = useState(false);
+    const [titleMessage, setTitleMessage] = useState("");
 
 
     const { user } = useAuth();
@@ -84,6 +87,21 @@ function DocumentPage() {
 
         return () => {
             socket.off("collaborator-role-updated", handleRoleUpdated);
+        };
+    }, [documentId]);
+
+    useEffect(() => {
+        const handleTitleUpdated = (payload) => {
+            if (payload.documentId !== documentId) {
+                return;
+            }
+            setTitle(payload.title);
+        };
+
+        socket.on("document-title-updated", handleTitleUpdated);
+
+        return () => {
+            socket.off("document-title-updated", handleTitleUpdated);
         };
     }, [documentId]);
 
@@ -167,6 +185,39 @@ function DocumentPage() {
         }
     };
 
+    const handleTitleSave = async (event) => {
+        event.preventDefault();
+
+        const trimmedTitle = title.trim();
+
+        if (!trimmedTitle) {
+            setTitleMessage("Title cannot be empty");
+            return;
+        }
+
+        if (trimmedTitle === document.title) {
+            setTitleMessage("Title is unchanged");
+            return;
+        }
+
+        setSavingTitle(true);
+        setTitleMessage("");
+
+        try {
+            await updateDocument(documentId, {
+                title: trimmedTitle,
+            });
+
+            await refreshDocument();
+
+            setTitleMessage("Title updated successfully");
+        } catch (err) {
+            setTitleMessage(err.message || "Failed to update title");
+        } finally {
+            setSavingTitle(false);
+        }
+    };
+
     if (loading) {
         return <div>Loading document...</div>;
     }
@@ -192,7 +243,26 @@ function DocumentPage() {
 
     return (
         <div>
-            <h1>{title || document.title}</h1>
+            {currentRole !== "viewer" ? (
+                <form onSubmit={handleTitleSave}>
+                    <input
+                        type="text"
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                        placeholder="Document title"
+                        maxLength={100}
+                        required
+                    />
+
+                    <button type="submit" disabled={savingTitle}>
+                        {savingTitle ? "Saving..." : "Save title"}
+                    </button>
+
+                    {titleMessage && <p>{titleMessage}</p>}
+                </form>
+            ) : (
+                <h1>{document.title}</h1>
+            )}
             <form onSubmit={handleShare}>
                 <h3>Share document</h3>
                 <input
