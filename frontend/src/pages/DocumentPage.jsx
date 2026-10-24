@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import Editor from "../components/editor/Editor";
 import useDocument from "../hooks/useDocument";
 import socket from "../services/socket";
-import { shareDocument } from "../api/document.js";
+import { shareDocument, removeCollaborator } from "../api/document.js";
+import useAuth from "../hooks/useAuth.js";
 
 function DocumentPage() {
     const { documentId } = useParams();
@@ -18,6 +19,10 @@ function DocumentPage() {
     const [shareRole, setShareRole] = useState("viewer");
     const [sharing, setSharing] = useState(false);
     const [shareMessage, setShareMessage] = useState("");
+
+    const { user } = useAuth();
+
+    const isOwner = document?.owner?.toString() === user?._id?.toString();
 
     useEffect(() => {
         if (!documentId) return;
@@ -49,11 +54,7 @@ function DocumentPage() {
         setShareMessage("");
 
         try {
-            const response = await shareDocument(
-                documentId,
-                shareEmail,
-                shareRole
-            );
+            const response = await shareDocument(documentId, shareEmail, shareRole);
 
             await refreshDocument();
 
@@ -64,6 +65,31 @@ function DocumentPage() {
             setShareMessage(err.message || "Failed to share document");
         } finally {
             setSharing(false);
+        }
+    };
+
+    const handleRemoveCollaborator = async (collaboratorId) => {
+        const confirmed = window.confirm(
+            "Are you sure you want to remove this collaborator?"
+        );
+
+        if (!confirmed) return;
+
+        setShareMessage("");
+
+        try {
+            const response = await removeCollaborator(
+                documentId,
+                collaboratorId
+            );
+
+            await refreshDocument();
+
+            setShareMessage(response.message);
+        } catch (err) {
+            setShareMessage(
+                err.message || "Failed to remove collaborator"
+            );
         }
     };
 
@@ -123,13 +149,13 @@ function DocumentPage() {
 
                         return (
                             <div key={key}>
-                                <p>
-                                    {name || "Collaborator"} {email ? `(${email})` : ""}
-                                </p>
-
-                                <small>
-                                    Role: {collaborator.role}
-                                </small>
+                                <p>{name || "Collaborator"} {email ? `(${email})` : ""}</p>
+                                <small>Role: {collaborator.role}</small>
+                                {isOwner && (
+                                    <button onClick={() => handleRemoveCollaborator(collaborator.user._id)}>
+                                        Remove access
+                                    </button>
+                                )}
                             </div>
                         );
                     })

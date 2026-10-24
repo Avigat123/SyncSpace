@@ -35,9 +35,11 @@ export const getDocumentVersions = (documentId) =>
     request(`/documents/${documentId}/history`);
 
 export const restoreVersion = (documentId, versionId) =>
-    request(
-        `/documents/${documentId}/history/${versionId}/restore`,
-        {
-            method: "POST",
-        }
-    );
+    request(`/documents/${documentId}/history/${versionId}/restore`, {
+        method: "POST",
+    });
+
+export const removeCollaborator = (documentId, collaboratorId) =>
+    request(`/documents/${documentId}/collaborators/${collaboratorId}`, {
+        method: "DELETE",
+    });

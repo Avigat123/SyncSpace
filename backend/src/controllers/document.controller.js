@@ -196,3 +196,16 @@ export const createDocumentVersion = asyncHandler(async (req, res) => {
         version,
     });
 });
+
+
+export const removeCollaborator = asyncHandler(async (req, res) => {
+    const { id, collaboratorId } = req.params;
+
+    const document = await documentService.removeCollaborator(id, collaboratorId);
+
+    res.status(200).json({
+        success: true,
+        message: "Collaborator access removed",
+        document,
+    });
+});
