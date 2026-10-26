@@ -1,6 +1,8 @@
 import Document from "../models/document.model.js";
 import ApiError from "../utils/ApiError.js";
 import Version from "../models/version.model.js";
+import { removeYDoc } from "../socket/yjsStore.js";
+import { saveTimers, getDocumentGeneration, incrementDocumentGeneration, withDocumentWriteLock, } from "../socket/store.js";
 
 export const createDocument = async (title, ownerId) => {
     const document = await Document.create({
@@ -92,19 +94,37 @@ export const updateCollaboratorRole = async (documentId, collaboratorId, role) =
 };
 
 export const deleteDocument = async (documentId) => {
-    const document = await Document.findById(documentId);
+    return withDocumentWriteLock(documentId, async () => {
+        const document = await Document.findById(documentId);
 
-    if (!document) {
-        throw new ApiError(404, "Document not found");
-    }
+        if (!document) {
+            throw new ApiError(404, "Document not found");
+        }
 
-    // Delete the document's saved version history.
-    await Version.deleteMany({
-        document: documentId,
+        // Invalidate pending saves from the previous generation.
+        incrementDocumentGeneration(documentId);
+
+        // Cancel the pending debounced save.
+        const timer = saveTimers.get(documentId);
+
+        if (timer) {
+            clearTimeout(timer);
+            saveTimers.delete(documentId);
+        }
+
+        // Remove the cached Yjs document.
+        const ydoc = removeYDoc(documentId);
+
+        if (ydoc) {
+            ydoc.destroy();
+        }
+
+        // Delete the document's version history.
+        await Version.deleteMany({ document: documentId });
+
+        // Finally, delete the document itself.
+        await document.deleteOne();
+
+        return document;
     });
-
-    // Delete the document itself.
-    await document.deleteOne();
-
-    return document;
 };
