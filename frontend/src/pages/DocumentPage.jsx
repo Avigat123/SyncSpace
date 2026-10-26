@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Editor from "../components/editor/Editor";
 import useDocument from "../hooks/useDocument";
 import socket from "../services/socket";
-import { shareDocument, removeCollaborator, updateCollaboratorRole, updateDocument } from "../api/document.js";
+import { shareDocument, removeCollaborator, updateCollaboratorRole, updateDocument, deleteDocument } from "../api/document.js";
 import useAuth from "../hooks/useAuth.js";
 
 function DocumentPage() {
@@ -26,8 +26,9 @@ function DocumentPage() {
     const [savingTitle, setSavingTitle] = useState(false);
     const [titleMessage, setTitleMessage] = useState("");
 
-
-
+    const navigate = useNavigate();
+    const [deleting, setDeleting] = useState(false);
+    const [deleteMessage, setDeleteMessage] = useState("");
 
     const { user } = useAuth();
 
@@ -108,6 +109,24 @@ function DocumentPage() {
             socket.off("document-title-updated", handleTitleUpdated);
         };
     }, [documentId]);
+
+    useEffect(() => {
+        const handleDocumentDeleted = (payload) => {
+            if (payload.documentId !== documentId) return;
+
+            window.alert(
+                payload.message || "This document has been deleted."
+            );
+
+            navigate("/dashboard");
+        };
+
+        socket.on("document-deleted", handleDocumentDeleted);
+
+        return () => {
+            socket.off("document-deleted", handleDocumentDeleted);
+        };
+    }, [documentId, navigate]);
 
     const handleShare = async (event) => {
         event.preventDefault();
@@ -224,6 +243,25 @@ function DocumentPage() {
         }
     };
 
+    const handleDeleteDocument = async () => {
+        const confirmed = window.confirm(
+            "Are you sure you want to permanently delete this document and its version history? This cannot be undone."
+        );
+
+        if (!confirmed) return;
+
+        setDeleting(true);
+        setDeleteMessage("");
+
+        try {
+            await deleteDocument(documentId);
+            navigate("/dashboard");
+        } catch (err) {
+            setDeleteMessage(err.message || "Failed to delete document");
+            setDeleting(false);
+        }
+    };
+
     const handleTitleKeyDown = (event) => {
         if (event.key === "Escape") {
             setTitle(originalTitle);
@@ -277,6 +315,21 @@ function DocumentPage() {
             ) : (
                 <h1>{document.title}</h1>
             )}
+
+            {isOwner && (
+                <div>
+                    <button
+                        type="button"
+                        onClick={handleDeleteDocument}
+                        disabled={deleting}
+                    >
+                        {deleting ? "Deleting..." : "Delete document"}
+                    </button>
+
+                    {deleteMessage && <p>{deleteMessage}</p>}
+                </div>
+            )}
+
             <form onSubmit={handleShare}>
                 <h3>Share document</h3>
                 <input

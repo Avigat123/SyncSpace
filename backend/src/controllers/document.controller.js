@@ -67,12 +67,33 @@ export const updateDocument = asyncHandler(async (req, res) => {
 });
 
 export const deleteDocument = asyncHandler(async (req, res) => {
+    const documentId = req.params.id;
 
-    await documentService.deleteDocument(
-        req.params.id
-    );
+    // Delete the document and its version history.
+    await documentService.deleteDocument(documentId);
 
-    res.json({
+    const io = getIO();
+
+    // Notify everyone currently viewing this document.
+    io.to(documentId).emit("document-deleted", {
+        documentId,
+        message: "This document has been deleted by its owner.",
+    });
+
+    // Disconnect sockets from the deleted document's room.
+    const documentRoom = io.sockets.adapter.rooms.get(documentId);
+
+    if (documentRoom) {
+        for (const socketId of documentRoom) {
+            const activeSocket = io.sockets.sockets.get(socketId);
+
+            if (activeSocket) {
+                activeSocket.disconnect(true);
+            }
+        }
+    }
+
+    res.status(200).json({
         success: true,
         message: "Document deleted",
     });

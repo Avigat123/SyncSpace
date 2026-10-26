@@ -1,5 +1,6 @@
 import Document from "../models/document.model.js";
 import ApiError from "../utils/ApiError.js";
+import Version from "../models/version.model.js";
 
 export const createDocument = async (title, ownerId) => {
     const document = await Document.create({
@@ -91,11 +92,19 @@ export const updateCollaboratorRole = async (documentId, collaboratorId, role) =
 };
 
 export const deleteDocument = async (documentId) => {
-    const document = await Document.findByIdAndDelete(documentId);
+    const document = await Document.findById(documentId);
 
     if (!document) {
         throw new ApiError(404, "Document not found");
     }
+
+    // Delete the document's saved version history.
+    await Version.deleteMany({
+        document: documentId,
+    });
+
+    // Delete the document itself.
+    await document.deleteOne();
 
     return document;
 };
