@@ -2,7 +2,8 @@ import Document from "../models/document.model.js";
 import ApiError from "../utils/ApiError.js";
 import Version from "../models/version.model.js";
 import { removeYDoc } from "../socket/yjsStore.js";
-import { saveTimers, getDocumentGeneration, incrementDocumentGeneration, withDocumentWriteLock, } from "../socket/store.js";
+import { saveTimers, incrementDocumentGeneration, withDocumentWriteLock, } from "../socket/store.js";
+import { removeAwareness } from "../socket/awarenessStore.js";
 
 export const createDocument = async (title, ownerId) => {
     const document = await Document.create({
@@ -112,7 +113,10 @@ export const deleteDocument = async (documentId) => {
             saveTimers.delete(documentId);
         }
 
-        // Remove the cached Yjs document.
+        // Remove awareness state
+        removeAwareness(documentId);
+
+        // Remove cached Yjs document
         const ydoc = removeYDoc(documentId);
 
         if (ydoc) {

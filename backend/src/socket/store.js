@@ -62,3 +62,19 @@ export function withDocumentWriteLock(documentId, operation) {
         }
     });
 }
+
+export function cleanupDocumentState(documentId) {
+    // Cancel pending autosave
+    const timer = saveTimers.get(documentId);
+
+    if (timer) {
+        clearTimeout(timer);
+        saveTimers.delete(documentId);
+    }
+
+    // Remove active users
+    activeUsers.delete(documentId);
+
+    // Remove document generation
+    documentGenerations.delete(documentId);
+}

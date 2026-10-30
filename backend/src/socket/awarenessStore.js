@@ -21,5 +21,10 @@ export async function getAwareness(documentId) {
 }
 
 export function removeAwareness(documentId) {
+    const awareness = awarenessMap.get(documentId);
+
+    if (!awareness) return;
+
+    awareness.destroy();
     awarenessMap.delete(documentId);
 }
