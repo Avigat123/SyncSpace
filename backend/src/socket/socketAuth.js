@@ -20,7 +20,9 @@ const socketAuth = async (socket, next) => {
 
         // Fetch the real User document so socket.user._id (Mongoose ObjectId)
         // is available — mirrors auth.middleware.js for HTTP routes.
-        const user = await User.findById(decoded.userId).select("-password");
+        const user = await User.findById(
+            decoded.userId ?? decoded.id
+        ).select("-password");
 
         if (!user) {
             return next(new ApiError(401, "User not found"));

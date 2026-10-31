@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -20,7 +21,9 @@
     "jsonwebtoken": "^9.0.3",
     "lib0": "^0.2.117",
     "mongoose": "^9.8.0",
+    "redis": "^6.3.1",
     "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.4",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.31"
   },
