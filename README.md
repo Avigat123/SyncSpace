@@ -1,10 +1,10 @@
 # SyncSpace 🚀
 
-**A real-time collaborative document editor built with React, TipTap, Yjs, Socket.IO, Node.js, Express, and MongoDB.**
+**A real-time collaborative document editor built with React, TipTap, Yjs, Socket.IO, Node.js, Express, MongoDB, and Redis.**
 
-SyncSpace allows multiple users to edit the same rich-text document simultaneously. It combines CRDT-based synchronization, live presence, secure authentication, role-based permissions, document sharing, and version history in a full-stack web application.
+SyncSpace is a full-stack collaborative document editing platform that allows multiple users to work on the same document simultaneously. It uses Yjs CRDTs for conflict-free synchronization, Socket.IO for real-time communication, and MongoDB for durable document persistence.
 
-The project is being developed with a focus on understanding production backend architecture, real-time systems, data consistency, and scalable collaboration.
+The project focuses on understanding production-oriented backend engineering, distributed systems, real-time collaboration, data consistency, and scalable application architecture.
 
 ---
 
@@ -12,17 +12,18 @@ The project is being developed with a focus on understanding production backend 
 
 - [Overview](#-overview)
 - [Features and Implementation Status](#-features-and-implementation-status)
-- [Architecture](#-architecture)
+- [System Architecture](#-system-architecture)
 - [How Collaboration Works](#-how-collaboration-works)
 - [Authentication and Authorization](#-authentication-and-authorization)
-- [Document Persistence](#-document-persistence)
+- [Yjs Persistence Architecture](#-yjs-persistence-architecture)
+- [Snapshot Compaction](#-snapshot-compaction)
 - [Version History and Restoration](#-version-history-and-restoration)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [Getting Started](#-getting-started)
 - [Environment Variables](#-environment-variables)
 - [REST API Reference](#-rest-api-reference)
-- [Socket.IO Event Reference](#-socketio-event-reference)
+- [Socket.IO Events](#-socketio-events)
 - [Important Design Decisions](#-important-design-decisions)
 - [Known Limitations and Future Work](#-known-limitations-and-future-work)
 - [License](#-license)
@@ -31,22 +32,27 @@ The project is being developed with a focus on understanding production backend 
 
 ## 🌟 Overview
 
-Traditional collaborative editors often send updated document content to a server and overwrite the previous version. When multiple users edit concurrently, this approach can cause changes to be lost.
+Traditional collaborative editors can encounter synchronization problems when multiple users modify the same document simultaneously. Replacing the entire document after every edit can cause concurrent changes to overwrite one another.
 
-SyncSpace uses **Yjs**, a CRDT (Conflict-free Replicated Data Type) framework, to maintain shared document state and merge concurrent edits.
+SyncSpace addresses this using **Yjs**, a CRDT (Conflict-free Replicated Data Type) framework that allows independent document changes to be merged.
 
-Instead of treating every keystroke as a replacement of the entire document, the application propagates Yjs updates between connected clients. Socket.IO provides the real-time communication layer, while MongoDB stores document metadata and encoded Yjs snapshots.
+The application uses:
 
-The application also supports authenticated access, document ownership, editor/viewer permissions, live presence, and snapshot restoration.
+- **Yjs** to maintain shared collaborative document state.
+- **TipTap** to provide a rich-text editing experience.
+- **Socket.IO** to transmit real-time updates between clients and servers.
+- **MongoDB** to store document metadata, Yjs snapshots, and individual update records.
+- **Redis** to distribute Socket.IO events and Yjs updates across backend instances.
 
 ### Core objectives
 
-- Enable simultaneous editing without relying on last-write-wins document replacement.
-- Synchronize changes between connected clients in real time.
-- Persist collaborative state across browser reloads and server restarts.
-- Protect documents using authentication and role-based authorization.
-- Allow users to create snapshots and restore previous document versions.
-- Build a foundation for future horizontal scaling and production deployment.
+- Enable simultaneous editing without last-write-wins document replacement.
+- Synchronize collaborative changes in real time.
+- Persist Yjs updates independently of the active in-memory document.
+- Recover collaborative documents after server restarts.
+- Provide document ownership, sharing, and role-based permissions.
+- Maintain version history and support restoration.
+- Build a foundation for horizontal scaling and production deployment.
 
 ---
 
@@ -55,163 +61,170 @@ The application also supports authenticated access, document ownership, editor/v
 | Feature | Status |
 |---|---|
 | User registration and login | Implemented |
-| JWT authentication using HTTP-only cookies | Implemented |
-| Authenticated frontend routes | Implemented |
+| JWT authentication | Implemented |
 | Document CRUD APIs | Implemented |
-| Document sharing and role-based permissions | Implemented |
-| Real-time editing with Yjs and Socket.IO | Implemented and tested |
-| MongoDB persistence of Yjs state | Implemented and tested |
-| Live presence and awareness synchronization | Implemented and tested |
-| Manual version snapshot creation | Implemented and tested |
-| Version history retrieval | Implemented |
-| Snapshot restoration and editor remounting | Implemented and tested |
-| Document-generation checks for stale updates | Implemented; further hardening needed |
-| Redis-based multi-server collaboration | Planned |
-| Production-grade concurrent persistence protection | Remaining work |
-| Production deployment and load balancing | Planned |
+| Document sharing | Implemented |
+| Owner, Editor and Viewer permissions | Implemented |
+| Socket.IO authentication | Implemented |
+| Document rooms | Implemented |
+| Real-time Yjs synchronization | Implemented and tested |
+| TipTap collaborative editor integration | Implemented |
+| Live awareness and presence | Implemented |
+| Document title synchronization | Implemented |
+| Live collaborator role updates | Implemented |
+| Live access revocation | Implemented |
+| Version history | Implemented |
+| Version restoration | Implemented and tested |
+| Redis Pub/Sub integration | Implemented |
+| Socket.IO Redis adapter | Implemented |
+| Cross-instance Socket.IO broadcasting | Tested |
+| Individual Yjs update persistence | Implemented and tested |
+| Transactional update sequence allocation | Implemented |
+| Snapshot-based document recovery | Implemented and tested |
+| Unique compound update index | Implemented |
+| Manual Yjs snapshot compaction | Implemented and tested |
+| Automatic snapshot compaction | Remaining work |
+| Distributed persistence hardening | Remaining work |
+| Production deployment | Planned |
 
-*Status describes the current development progress, not a claim of production readiness. Re-test features after significant changes.*
+*Implementation status reflects development and testing progress. It does not imply that every feature is production-ready.*
 
 ### Key capabilities
 
-- **Real-time collaborative editing:** Multiple users can edit the same document using Yjs CRDTs.
-- **Rich-text editing:** TipTap provides the editor interface and ProseMirror document model.
-- **Live presence:** Awareness messages synchronize collaboration metadata, such as cursor and selection information.
-- **Secure authentication:** JWTs are delivered through HTTP-only cookies.
-- **Document permissions:** Owners manage documents, editors modify them, and viewers receive read access.
-- **Automatic persistence:** Changes are saved to MongoDB using a debounced persistence mechanism.
-- **Version snapshots:** A user can create a snapshot of the current Yjs state and restore a previous snapshot.
-- **Protected routes:** The frontend checks the authenticated user's session before displaying protected pages.
+- **Real-time collaboration:** Multiple users can edit a shared document using Yjs.
+- **Rich-text editing:** TipTap provides the editor interface.
+- **Live presence:** Awareness synchronization supports collaboration metadata such as cursor and selection information.
+- **Authentication:** JWT-based authentication protects application and socket operations.
+- **Role-based permissions:** Owners, editors, and viewers have different access levels.
+- **Durable persistence:** Individual Yjs updates are recorded in MongoDB.
+- **Document recovery:** The server reconstructs a Y.Doc from its stored snapshot and subsequent update records.
+- **Version history:** Users can create and restore document snapshots.
+- **Multi-instance communication:** Redis distributes Socket.IO events between backend instances.
+- **Snapshot compaction:** Persisted updates can be consolidated into a new snapshot to reduce update-log growth.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
 ### High-level architecture
 
 ```text
-                         React Frontend
-                               |
-                  +------------+------------+
-                  |                         |
-              REST API                 Socket.IO
-                  |                         |
-                  v                         v
-           Express Backend          Socket Handlers
-                  |                         |
-       +----------+----------+              |
-       |                     |              v
-       v                     v        Server-side Y.Doc
-  Auth Services       Document Services      |
-       |                     |               |
-       +----------+----------+---------------+
-                  |
-                  v
-             MongoDB
-                  |
-       +----------+-----------+
-       |                      |
-       v                      v
- Document Metadata       Yjs Snapshots
- User Accounts           Version History
-
- Redis Pub/Sub and horizontal
- scaling: planned future work
+                     React Frontend
+                           |
+              +------------+------------+
+              |                         |
+           REST API                 Socket.IO
+              |                         |
+              v                         v
+        Express Backend           Socket Handlers
+              |                         |
+      +-------+--------+                |
+      |                |                v
+      v                v          Server-side Y.Doc
+ Auth Services   Document Services       |
+      |                |                 |
+      +----------------+-----------------+
+                       |
+             +---------+---------+
+             |                   |
+             v                   v
+          MongoDB              Redis
+             |                   |
+     +-------+--------+          |
+     |       |        |          |
+     v       v        v          v
+ Documents  Yjs     Versions   Pub/Sub
+ Metadata   Updates             |
+     |       |                  |
+     +-------+------------------+
+                       |
+                 Socket.IO Redis
+                    Adapter
+                       |
+              Other Backend Instances
 ```
 
 ### Main components
 
 | Component | Responsibility |
 |---|---|
-| React | Application UI, routing, authentication state |
-| TipTap | Rich-text editing and editor extensions |
-| Yjs | Shared document state and CRDT conflict resolution |
-| Socket.IO client | Sends and receives real-time collaboration events |
-| Express | HTTP APIs, middleware, authentication, authorization |
-| Socket.IO server | Connection management, document rooms, update broadcasts |
-| Server-side Y.Doc | Holds the active in-memory collaborative state |
-| MongoDB | Persists users, document metadata, Yjs state, and snapshots |
-| Redis | Intended for cross-server event propagation and scaling |
+| React | Frontend application and UI |
+| TipTap | Rich-text editing |
+| Yjs | Collaborative document state and conflict resolution |
+| Socket.IO Client | Real-time communication |
+| Express | HTTP APIs and middleware |
+| Socket.IO Server | Connection management and document rooms |
+| Server-side Y.Doc | Active in-memory collaborative state |
+| MongoDB | Application data and durable Yjs persistence |
+| Redis Pub/Sub | Cross-instance Yjs update propagation |
+| Socket.IO Redis Adapter | Cross-instance Socket.IO event broadcasting |
 
-### Two separate communication paths
+### Two communication paths
 
-**1. REST API — durable application operations**
+**1. REST API — Application operations**
 
-Used for login, registration, document CRUD, sharing, fetching version history, creating snapshots, and restoring versions.
+Used for authentication, document CRUD, sharing, permissions, version history, and restoration.
 
-**2. Socket.IO — live collaboration**
+**2. Socket.IO — Real-time collaboration**
 
-Used for joining document rooms, synchronizing Yjs updates, sharing awareness information, and notifying connected users about document restoration.
+Used for joining document rooms, synchronizing Yjs updates, awareness synchronization, and notifying connected users about document changes.
 
-Keeping these paths separate makes the system easier to maintain. HTTP handles application operations, while Socket.IO handles continuous real-time communication.
+Keeping these communication paths separate makes the application easier to maintain and extend.
 
 ---
 
 ## 🔄 How Collaboration Works
 
-Understanding this flow is the most important part of understanding SyncSpace.
+### 1. Local editing
 
-### 1. The editor creates local changes
+A user types into the TipTap editor. The editor is connected to a shared Y.Doc through the TipTap Collaboration extension.
 
-A user types into the TipTap editor. The editor is connected to a shared Yjs document through TipTap's Collaboration extension.
-
-The change updates the local Yjs state immediately, so the user does not have to wait for the server before seeing their own typing.
+Changes are reflected locally without waiting for the server.
 
 ### 2. Yjs generates an update
 
-Yjs tracks the change and emits an update containing the information needed to synchronize the shared document state.
+Yjs tracks the change and generates a binary update represented as a `Uint8Array`.
 
-The update is binary data, represented as a `Uint8Array`.
+### 3. Frontend sends the update
 
-### 3. The frontend sends the update
-
-The frontend's Socket.IO provider listens for Yjs document updates and sends them to the backend using the `sync-yjs` event.
+The frontend sends the update through Socket.IO using the `sync-yjs` event.
 
 Conceptually:
 
-```js
+```javascript
 socket.emit("sync-yjs", {
-  documentId,
-  update: Array.from(update),
-  generation,
+    documentId,
+    update: Array.from(update),
+    generation,
 });
 ```
 
-The `generation` value identifies the current document session generation and is used to reject stale updates after restoration.
+The generation identifies the current document version and helps reject stale updates after restoration.
 
-### 4. The backend applies and broadcasts the update
+### 4. Backend validates and persists the update
 
-The server retrieves the active Y.Doc, validates the generation, applies the update, and broadcasts the update to other clients in the document room.
+The backend:
 
-Conceptually:
+1. Validates document membership and editing permissions.
+2. Checks the document generation.
+3. Allocates a sequence number.
+4. Persists the update in MongoDB.
+5. Applies the update to the active server-side Y.Doc.
+6. Publishes the update through Redis.
+7. Broadcasts the update through Socket.IO.
 
-```js
-Y.applyUpdate(ydoc, binaryUpdate);
+The update record is persisted before the update is accepted into the server-side collaborative state.
 
-socket.to(documentId).emit(
-  "yjs-update",
-  Array.from(binaryUpdate)
-);
-```
+### 5. Other clients receive the update
 
-This is an illustrative excerpt of the synchronization flow, not the complete production handler.
+Other clients receive `yjs-update` and apply the binary update to their local Y.Doc.
 
-### 5. Other clients apply the update
+Yjs merges concurrent changes using its CRDT mechanisms.
 
-Other connected clients receive `yjs-update` and apply the update to their own Y.Doc.
-
-Yjs merges concurrent changes according to its CRDT rules. As clients receive the necessary updates, their shared document states converge.
-
-### 6. The server persists the state
-
-The backend schedules a debounced save. When the document remains idle for the configured interval, its encoded Yjs state is saved to MongoDB.
-
-This avoids performing a database write for every individual keystroke.
-
-### Collaboration flow at a glance
+### Collaboration flow
 
 ```text
-User types
+User Types
     |
     v
 TipTap Editor
@@ -220,205 +233,280 @@ TipTap Editor
 Frontend Y.Doc
     |
     v
-Yjs update
+Yjs Update
     |
     v
 Socket.IO: sync-yjs
     |
     v
+Backend Validation
+    |
+    v
+MongoDB Update Persistence
+    |
+    v
 Backend Y.Doc
     |
-    +------> Broadcast yjs-update
+    +-----------> Redis Pub/Sub
     |                    |
-    |                    v
-    |              Other clients
+    v                    v
+Socket.IO Broadcast   Other Backend Instances
     |                    |
-    |                    v
-    |              Apply Yjs update
-    |
-    v
-Debounced persistence
-    |
-    v
-MongoDB Yjs snapshot
+    +--------------------+
+             |
+             v
+        Other Clients
+             |
+             v
+      Apply Yjs Update
 ```
 
-**Important distinction:** Socket.IO transports updates; Yjs manages shared document state and conflict resolution. MongoDB provides persistence. None of these components replaces the responsibilities of the others.
+**Important:** Socket.IO transports events, Redis distributes messages, Yjs manages collaborative state, and MongoDB provides durable persistence. Each component has a separate responsibility.
 
 ---
 
 ## 🔐 Authentication and Authorization
 
-SyncSpace uses JWT-based authentication with HTTP-only cookies.
+SyncSpace uses JWT-based authentication.
 
-### Authentication flow
+The backend verifies authenticated users before allowing protected application operations and socket connections.
 
-1. A user registers or logs in through the REST API.
-2. The backend validates the credentials.
-3. A JWT containing the user's identifier is generated.
-4. The server sets the JWT in an HTTP-only cookie.
-5. The frontend sends credentials with requests.
-6. Authentication middleware verifies the cookie and loads the authenticated user.
-7. Protected frontend routes use the authentication context to decide whether to render the requested page.
+### Authentication responsibilities
 
-### Why HTTP-only cookies?
-
-HTTP-only cookies cannot be accessed through ordinary browser JavaScript. This reduces exposure of the token to certain token-theft attacks, although it does not eliminate XSS or CSRF risks.
-
-The frontend should not read the JWT or store it in `localStorage`.
+- User registration and login.
+- JWT generation and verification.
+- Protected REST API access.
+- Socket authentication.
+- Document-level authorization.
 
 ### Document roles
 
 | Role | Permissions |
 |---|---|
-| Owner | Full control, including sharing and deletion |
+| Owner | Full control over the document |
 | Editor | Can view and modify the document |
 | Viewer | Can view but cannot modify the document |
 
-Document permission middleware checks the user's access level before allowing protected document operations.
+The backend checks document permissions before accepting collaborative editing operations.
 
-**Security requirement:** Socket connections must also be authenticated, and document-room joins must verify access to the requested document. Authentication alone does not prove that a user is allowed to access every document.
+Socket authentication alone does not grant access to every document. Document membership and role checks are also required.
 
 ---
 
-## 💾 Document Persistence
+## 💾 Yjs Persistence Architecture
 
-SyncSpace separates the active collaborative state from its durable database representation.
+One of the most important parts of SyncSpace is its durable Yjs persistence architecture.
 
-### Active state versus stored state
+The application uses a combination of **Yjs snapshots and individual update records** instead of depending exclusively on an in-memory document.
 
-- **Active Y.Doc:** The in-memory Yjs document used by the running backend.
-- **Stored Yjs state:** An encoded binary representation saved in MongoDB.
-- **Document metadata:** Title, owner, collaborators, and other document fields.
-- **Version snapshot:** A saved historical representation of the document state.
+### 1. Document snapshot
 
-The active Y.Doc is cached in memory to avoid reloading the document from MongoDB for every update.
+The `documents` collection stores the latest compacted Yjs state.
 
-### Saving a Y.Doc
+Relevant fields:
 
-The persistence service encodes the shared state:
+| Field | Purpose |
+|---|---|
+| `yjsState` | Encoded Yjs snapshot |
+| `generation` | Current document generation |
+| `updateSequence` | Latest persisted update sequence |
+| `snapshotSequence` | Latest sequence included in the snapshot |
 
-```js
-const state = Y.encodeStateAsUpdate(ydoc);
+### 2. Individual Yjs updates
 
-await Document.findByIdAndUpdate(documentId, {
-  yjsState: Buffer.from(state),
-});
-```
+The `yjsupdates` collection stores individual collaborative updates.
 
-### Loading a Y.Doc
+Each record contains:
 
-When a document is loaded, the service creates a new Y.Doc and applies the stored state:
+| Field | Purpose |
+|---|---|
+| `document` | Reference to the document |
+| `generation` | Generation associated with the update |
+| `sequence` | Update sequence number |
+| `update` | Binary Yjs update |
+| `createdAt` | Creation timestamp |
 
-```js
-const ydoc = new Y.Doc();
+The compound index is:
 
-if (document.yjsState?.length) {
-  Y.applyUpdate(
-    ydoc,
-    new Uint8Array(document.yjsState)
-  );
+```javascript
+{
+    document: 1,
+    generation: 1,
+    sequence: 1
 }
 ```
 
-This reconstructs the collaborative state from the stored Yjs representation.
+It is configured as a **unique index**, preventing duplicate sequence entries within the same document generation.
 
-The TipTap Collaboration extension expects the appropriate shared Yjs structure. It is not safe to assume that an arbitrary `Y.Text` contains the rich-text content managed by TipTap's collaborative document.
+### 3. Transactional update persistence
 
-### Why debounce persistence?
+The `persistYjsUpdate()` service performs two operations inside a MongoDB transaction:
 
-Writing to MongoDB after every keystroke can generate unnecessary database operations.
+1. Atomically increments `updateSequence`.
+2. Inserts the corresponding Yjs update record.
 
-Debouncing postpones the save until updates stop arriving for a short interval. This reduces write frequency, but it introduces a durability window: recent changes may not yet have reached MongoDB if the process stops unexpectedly.
+Both operations commit together.
 
-The persistence layer therefore needs careful handling of pending timers, restores, concurrent saves, and failures.
+If inserting the update fails, the sequence increment is rolled back as well.
+
+The generation filter also prevents outdated clients from persisting updates after a document restoration.
+
+### 4. Document recovery
+
+When a document is loaded, `loadYDoc()`:
+
+1. Opens a MongoDB transaction.
+2. Reads the document snapshot and sequence counters.
+3. Retrieves update records belonging to the same generation.
+4. Selects updates after `snapshotSequence` and up to `updateSequence`.
+5. Reconstructs the Y.Doc by applying the snapshot and then the updates in sequence order.
+
+Conceptually:
+
+```text
+MongoDB Document
+       |
+       v
+Read Yjs Snapshot
+       |
+       v
+Read Sequence Counters
+       |
+       v
+Fetch Updates After Snapshot
+       |
+       v
+Sort Updates by Sequence
+       |
+       v
+Create New Y.Doc
+       |
+       v
+Apply Snapshot
+       |
+       v
+Replay Remaining Updates
+       |
+       v
+Recovered Y.Doc
+```
+
+The snapshot and update records are read in the same transaction to obtain a consistent database view.
+
+This allows the backend to recover document state without depending on a previous server process's memory.
+
+---
+
+## 📦 Snapshot Compaction
+
+As users edit documents, individual Yjs updates accumulate in the `yjsupdates` collection.
+
+Keeping every update indefinitely can increase storage usage and recovery time.
+
+SyncSpace implements **manual snapshot compaction** to consolidate persisted updates into a new snapshot.
+
+### Compaction process
+
+1. Read the current document and its sequence counters.
+2. Retrieve updates not yet included in the snapshot.
+3. Verify that the expected update records are present.
+4. Reconstruct the complete Y.Doc.
+5. Encode the reconstructed state into a new snapshot.
+6. Update `yjsState` and `snapshotSequence`.
+7. Delete update records already included in the snapshot.
+
+### Compaction flow
+
+```text
+Existing Snapshot
+       +
+Uncompacted Update Log
+       |
+       v
+Reconstruct Complete Y.Doc
+       |
+       v
+Encode New Snapshot
+       |
+       v
+Update Document Snapshot
+       |
+       v
+Update snapshotSequence
+       |
+       v
+Delete Included Update Records
+       |
+       v
+Compacted Document
+```
+
+### Transaction safety
+
+Snapshot replacement and deletion of included update records happen inside the same MongoDB transaction.
+
+This ensures that the new snapshot and corresponding update-log cleanup commit together.
+
+The service also checks that the update log is complete before advancing the snapshot sequence.
+
+### Manual compaction verification
+
+The first manual compaction test was performed using an existing SyncSpace document.
+
+| Metric | Before | After |
+|---|---:|---:|
+| Generation | 0 | 0 |
+| Snapshot sequence | 0 | 5 |
+| Update sequence | 5 | 5 |
+| Update records | 5 | 0 |
+| Updates replayed during recovery | 5 | 0 |
+
+The test also verified:
+
+```text
+State vector preserved: true
+Encoded state preserved: true
+```
+
+This confirms that the reconstructed Yjs state was preserved through the tested compaction and recovery cycle.
+
+**Current status:** Manual compaction is implemented and tested. Automatic threshold-based compaction and further concurrent multi-instance testing remain future work.
 
 ---
 
 ## 🕒 Version History and Restoration
 
-SyncSpace supports manually creating snapshots and restoring previously saved versions.
+SyncSpace supports creating document snapshots and restoring previously saved versions.
 
 ### Creating a version
 
-When a user creates a snapshot:
-
-1. The backend loads the active Y.Doc.
-2. The current state is encoded using `Y.encodeStateAsUpdate()`.
-3. The document title and snapshot state are stored in the Version collection.
-4. The version records the document, author, and creation time.
-
-Conceptually:
-
-```js
-const yjsState = Y.encodeStateAsUpdate(ydoc);
-
-await Version.create({
-  document: document._id,
-  title: document.title,
-  content: document.content || "",
-  editedBy: userId,
-  yjsState: Buffer.from(yjsState),
-});
-```
-
-The actual service also validates that the document exists.
+1. Load the active Y.Doc.
+2. Encode the current Yjs state.
+3. Save the snapshot in the Version collection.
+4. Store the document reference, title, author, and timestamp.
 
 ### Restoring a version
 
-The restore flow is:
+The restore process:
 
-1. Validate the document and requested version.
-2. Verify that the version belongs to the document.
-3. Ensure the version contains a Yjs snapshot.
-4. Reconstruct a Y.Doc from the snapshot.
-5. Persist the restored state and update the cached Y.Doc.
-6. Increment the document generation.
-7. Emit `document-restored` to the document's Socket.IO room.
-8. Connected frontend pages update their title and remount the editor.
-9. The new editor joins the document and receives its current state.
+1. Validates the requested version.
+2. Verifies that the version belongs to the requested document.
+3. Reconstructs a Y.Doc from the stored snapshot.
+4. Persists the restored state.
+5. Resets the update and snapshot sequence counters.
+6. Increments the document generation.
+7. Removes the previous cached Y.Doc.
+8. Publishes a Redis restore notification.
+9. Notifies connected clients through Socket.IO.
+10. Allows clients to reconnect to the restored document state.
 
-```text
-User selects Restore
-        |
-        v
-Backend validates snapshot
-        |
-        v
-Reconstruct restored Y.Doc
-        |
-        v
-Persist restored state
-        |
-        v
-Replace cached Y.Doc
-        |
-        v
-Increment generation
-        |
-        v
-Emit document-restored
-        |
-        v
-Frontend remounts editor
-        |
-        v
-New provider joins and synchronizes
-```
+### Why generations matter
 
-### Why document generations matter
+A client may still hold an older document state after a restoration.
 
-Suppose a browser still holds a provider associated with the document state from before a restore. That provider may attempt to send an update based on an outdated editing session.
+The generation mechanism helps the backend reject updates associated with an outdated generation.
 
-The generation check lets the backend reject updates carrying an older generation.
-
-This is an additional safeguard; it is not a replacement for Yjs CRDT synchronization.
-
-### Current limitation
-
-The generation guard and debounced save logic are implemented, but **fully race-safe persistence is still a hardening task**. An older MongoDB write that has already started can still race with a restore. A production-ready solution needs serialized or otherwise coordinated persistence and restore operations.
-
-Version snapshots also represent saved document states; they are not a complete event-by-event audit log.
+This prevents old editing sessions from silently writing into the restored document generation.
 
 ---
 
@@ -426,78 +514,85 @@ Version snapshots also represent saved document states; they are not a complete 
 
 | Layer | Technologies |
 |---|---|
-| Frontend | React, Vite, JavaScript, CSS |
+| Frontend | React, Vite, JavaScript |
 | Rich-text editor | TipTap, ProseMirror |
-| Collaborative state | Yjs, `y-protocols` |
-| Real-time transport | Socket.IO client and server |
+| Collaborative state | Yjs |
+| Real-time communication | Socket.IO |
 | Backend | Node.js, Express |
 | Database | MongoDB, Mongoose |
-| Authentication | JWT, HTTP-only cookies, bcryptjs |
+| Authentication | JWT |
+| Cross-instance communication | Redis Pub/Sub |
+| Socket.IO scaling | Redis Adapter |
+| Containerization | Docker |
 | Development | npm, Nodemon |
-| Containerization | Docker, Docker Compose |
-| Future scaling | Redis Pub/Sub, multi-instance Socket.IO |
 
 ---
 
 ## 📂 Project Structure
 
-The following is a guide to the main backend modules. The frontend structure is summarized by responsibility; check the repository for the exact current filenames.
+The following represents the main application structure. Some modules may be added or reorganized as development continues.
 
 ```text
 SyncSpace/
+│
 ├── backend/
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── db.js
+│   │   │   ├── db.js
+│   │   │   └── redis.js
+│   │   │
 │   │   ├── controllers/
 │   │   │   ├── auth.controller.js
 │   │   │   └── document.controller.js
+│   │   │
 │   │   ├── middlewares/
 │   │   │   ├── auth.middleware.js
 │   │   │   ├── documentPermission.middleware.js
 │   │   │   └── error.middleware.js
+│   │   │
 │   │   ├── models/
 │   │   │   ├── user.model.js
 │   │   │   ├── document.model.js
-│   │   │   └── version.model.js
+│   │   │   ├── version.model.js
+│   │   │   └── yjsUpdate.model.js
+│   │   │
 │   │   ├── routes/
 │   │   │   ├── auth.routes.js
 │   │   │   └── document.routes.js
+│   │   │
 │   │   ├── services/
 │   │   │   ├── auth.service.js
 │   │   │   ├── document.service.js
 │   │   │   ├── yjs.service.js
-│   │   │   ├── version.service.js
+│   │   │   ├── yjsUpdate.service.js
+│   │   │   ├── yjsCompaction.service.js
 │   │   │   └── versionRestore.service.js
+│   │   │
 │   │   ├── socket/
 │   │   │   ├── socketAuth.js
 │   │   │   ├── socketInstance.js
 │   │   │   ├── document.socket.js
-│   │   │   ├── store.js
+│   │   │   ├── yjsRedis.js
 │   │   │   ├── yjsStore.js
 │   │   │   ├── awarenessStore.js
 │   │   │   └── handlers/
 │   │   │       ├── joinDocument.js
 │   │   │       ├── syncYjs.js
 │   │   │       ├── syncAwareness.js
-│   │   │       ├── CursorMove.js
-│   │   │       ├── typing.js
 │   │   │       └── disconnect.js
-│   │   ├── utils/
-│   │   │   ├── ApiError.js
-│   │   │   ├── asyncHandler.js
-│   │   │   └── generateToken.js
+│   │   │
 │   │   ├── app.js
 │   │   └── server.js
+│   │
 │   ├── .env.example
-│   ├── Dockerfile
-│   └── package.json
+│   ├── package.json
+│   └── Dockerfile
+│
 ├── frontend/
 │   ├── src/
 │   │   ├── api/
 │   │   ├── assets/
 │   │   ├── collaboration/
-│   │   │   └── socketProvider.js
 │   │   ├── components/
 │   │   ├── context/
 │   │   ├── hooks/
@@ -509,27 +604,14 @@ SyncSpace/
 │   │   ├── utils/
 │   │   ├── App.jsx
 │   │   └── main.jsx
-│   ├── Dockerfile
-│   └── package.json
+│   │
+│   ├── package.json
+│   └── Dockerfile
+│
 ├── docker-compose.yml
 ├── README.md
 └── structure.txt
 ```
-
-### Where to look when debugging
-
-| Problem | Start here |
-|---|---|
-| Login or session issues | `auth.controller.js`, `auth.middleware.js`, `AuthContext.jsx` |
-| Permission errors | `documentPermission.middleware.js` |
-| Document CRUD issues | `document.controller.js`, `document.service.js` |
-| Edits not synchronizing | `socketProvider.js`, `syncYjs.js`, `joinDocument.js` |
-| Document state not loading | `yjs.service.js`, `yjsStore.js` |
-| Edits disappear after restart | `yjs.service.js`, `syncYjs.js` |
-| Cursors or presence not updating | `syncAwareness.js`, `awarenessStore.js` |
-| Snapshot creation | `version.service.js`, `document.controller.js` |
-| Snapshot restoration | `versionRestore.service.js`, `DocumentPage.jsx` |
-| Socket connection issues | `socketAuth.js`, `socketInstance.js`, `document.socket.js` |
 
 ---
 
@@ -537,12 +619,14 @@ SyncSpace/
 
 ### Prerequisites
 
-- Node.js and npm
-- MongoDB, running locally or through Docker
+- Node.js
+- npm
+- MongoDB Atlas or a MongoDB replica-set deployment
+- Redis
+- Docker (optional)
 - Git
-- A modern browser
 
-Redis is not required for the current single-server collaboration setup unless your local Compose configuration explicitly starts it.
+**Important:** The current persistence implementation uses MongoDB transactions. Use a MongoDB deployment that supports transactions, such as MongoDB Atlas or a properly configured replica set.
 
 ### 1. Clone the repository
 
@@ -551,8 +635,6 @@ git clone <YOUR_REPOSITORY_URL>
 cd SyncSpace
 ```
 
-Replace the placeholder with your repository URL.
-
 ### 2. Configure the backend
 
 ```bash
@@ -560,23 +642,39 @@ cd backend
 npm install
 ```
 
-Create a `.env` file using `.env.example` as a reference.
+Create a `.env` file in the backend directory.
 
 Example:
 
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/syncspace
-JWT_SECRET=replace_with_a_long_random_secret
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_secure_jwt_secret
 NODE_ENV=development
 CLIENT_URL=http://localhost:5173
+REDIS_URL=redis://localhost:6379
 ```
 
-Use the variable names expected by your actual backend configuration. Keep secrets out of Git.
+Use the environment variable names expected by your actual configuration.
 
-### 3. Start MongoDB
+Never commit real credentials or secrets.
 
-Make sure MongoDB is running and the connection URI points to the correct instance.
+### 3. Start Redis
+
+If using Docker:
+
+```bash
+docker run -d \
+  --name syncspace-redis \
+  -p 6379:6379 \
+  redis:7-alpine
+```
+
+If the container already exists, start it with:
+
+```bash
+docker start syncspace-redis
+```
 
 ### 4. Start the backend
 
@@ -584,11 +682,11 @@ Make sure MongoDB is running and the connection URI points to the correct instan
 npm run dev
 ```
 
-Check the terminal for successful server startup and database connection messages.
+The backend should connect to MongoDB and Redis before starting the HTTP server.
 
-### 5. Configure and start the frontend
+### 5. Configure the frontend
 
-Open a second terminal:
+Open another terminal:
 
 ```bash
 cd frontend
@@ -596,33 +694,26 @@ npm install
 npm run dev
 ```
 
-If your frontend API client uses `VITE_API_URL`, create `frontend/.env` with:
+Configure the frontend API base URL according to the API client implementation.
+
+Example:
 
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-Use the port configured in your backend. The frontend and backend must agree on the API URL and cookie/CORS settings.
-
 ### 6. Test collaboration
 
-1. Register or log in.
-2. Create a document.
-3. Open the same document in a second browser window.
-4. Log in as a user with access to the document.
-5. Edit in both windows and verify that changes synchronize.
-6. Reload a browser and verify that persisted content loads.
-7. Create a version snapshot, edit the document, and restore the snapshot.
-
-### Docker Compose
-
-The repository contains a `docker-compose.yml` and Dockerfiles. To use the containerized setup:
-
-```bash
-docker compose up --build
-```
-
-Check the actual Compose configuration for required environment variables, exposed ports, health checks, and which services are included. The command alone does not establish that every service is configured for production.
+1. Start the backend and frontend.
+2. Register or log in.
+3. Create a document.
+4. Open the document in another browser session.
+5. Give the second user access.
+6. Edit from both sessions.
+7. Verify that updates synchronize.
+8. Reload the document and verify recovery.
+9. Create a version snapshot.
+10. Restore the snapshot and verify that connected clients receive the restoration notification.
 
 ---
 
@@ -630,140 +721,145 @@ Check the actual Compose configuration for required environment variables, expos
 
 | Variable | Purpose |
 |---|---|
-| `PORT` | Backend HTTP server port |
+| `PORT` | Backend server port |
 | `MONGODB_URI` | MongoDB connection string |
-| `JWT_SECRET` | Secret used to sign and verify JWTs |
+| `JWT_SECRET` | JWT signing and verification secret |
 | `NODE_ENV` | Runtime environment |
-| `CLIENT_URL` | Allowed frontend origin for CORS |
+| `CLIENT_URL` | Allowed frontend origin |
+| `REDIS_URL` | Redis connection URL |
 | `VITE_API_URL` | Frontend API base URL |
 
-Use the variable names required by your current source code. Never commit real secrets or production credentials.
+Use the exact variable names expected by the application source code.
 
 ---
 
 ## 📡 REST API Reference
 
-The backend routes are protected by authentication middleware where appropriate.
+The following is a high-level reference. Verify exact route names and request payloads against the current route and controller implementations.
 
-Assuming the API prefix is `/api`, the current document API includes the following operations.
+### Authentication
 
-### Authentication — `/api/auth`
+Base path: `/api/auth`
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | POST | `/register` | Register a user |
-| POST | `/login` | Authenticate and set the session cookie |
-| POST | `/logout` | Clear the session cookie |
-| GET | `/me` | Retrieve the current user |
+| POST | `/login` | Log in |
+| POST | `/logout` | Log out |
+| GET | `/me` | Retrieve authenticated user |
 
-### Documents — `/api/documents`
+### Documents
 
-| Method | Endpoint | Required access | Purpose |
-|---|---|---|---|
-| POST | `/` | Authenticated | Create a document |
-| GET | `/` | Authenticated | List accessible documents |
-| GET | `/:id` | Viewer or higher | Retrieve document information |
-| PUT | `/:id` | Editor or owner | Update supported document fields |
-| DELETE | `/:id` | Owner | Delete a document |
-| POST | `/:id/share` | Owner | Share document access |
-| GET | `/:id/history` | Viewer or higher | Retrieve version history |
-| POST | `/:id/versions` | Editor or owner | Create a version snapshot |
-| POST | `/:documentId/history/:versionId/restore` | Editor or owner | Restore a saved version |
+Base path: `/api/documents`
 
-The exact response bodies and sharing payload should be checked in the corresponding controller and service implementations.
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/` | Create a document |
+| GET | `/` | List accessible documents |
+| GET | `/:id` | Retrieve document |
+| PUT | `/:id` | Update document fields |
+| DELETE | `/:id` | Delete document |
+| POST | `/:id/share` | Share document |
+| GET | `/:id/history` | Retrieve version history |
+| POST | `/:id/versions` | Create a version snapshot |
+| POST | `/:documentId/history/:versionId/restore` | Restore a version |
 
 ---
 
-## 🔌 Socket.IO Event Reference
+## 🔌 Socket.IO Events
 
-SyncSpace uses a custom Socket.IO event protocol to coordinate document collaboration.
+SyncSpace uses a custom Socket.IO event protocol.
 
 | Event | Direction | Purpose |
 |---|---|---|
-| `join-document` | Client → Server | Request to join a document room |
-| `document-generation` | Server → Client | Provide the current document generation |
-| `sync-document` | Server → Client | Send the initial Yjs state |
-| `sync-yjs` | Client → Server | Submit a Yjs update and its generation |
-| `yjs-update` | Server → Other clients | Broadcast a Yjs update |
-| `awareness-sync-request` | Client/server | Request awareness synchronization |
-| `awareness-update` | Bidirectional | Exchange cursor, selection, and user awareness data |
-| `document-restored` | Server → Document room | Notify clients that a version was restored |
-| `cursor-move` | Client → Server | Handle cursor movement, if used by the active client |
-| `typing` | Client → Server | Handle typing indicators, if used by the active client |
+| `join-document` | Client → Server | Join a document room |
+| `document-generation` | Server → Client | Provide document generation |
+| `sync-document` | Server → Client | Send initial Yjs state |
+| `sync-yjs` | Client → Server | Submit a Yjs update |
+| `yjs-update` | Server → Clients | Broadcast collaborative updates |
+| `awareness-sync-request` | Client → Server | Request awareness synchronization |
+| `awareness-update` | Bidirectional | Synchronize awareness information |
+| `document-restored` | Server → Document room | Notify clients of restoration |
+| `cursor-move` | Client → Server | Handle cursor movement, where used |
+| `typing` | Client → Server | Handle typing indicators, where used |
 
-The precise payload format is defined by the socket handlers and frontend provider. Check both sides when changing an event name or payload.
-
-**Note:** This is the application's current custom protocol, not a claim that it implements every standard Yjs sync-protocol message such as `sync-step-1` and `sync-step-2`.
+The exact event payloads are defined by the frontend provider and backend socket handlers.
 
 ---
 
 ## 🧠 Important Design Decisions
 
-### Why Yjs instead of sending the entire document?
+### Why Yjs?
 
-Sending the entire document after each edit can cause unnecessary network traffic and lost updates when concurrent writes overwrite each other.
-
-Yjs represents collaborative changes through CRDT updates and merges concurrent operations according to its data structures.
+Yjs provides CRDT-based shared document state. It allows concurrent edits to be merged without relying on replacing the entire document after every change.
 
 ### Why Socket.IO?
 
-Socket.IO provides event-based communication, rooms, reconnection support, and transport management. Rooms allow the backend to broadcast document updates to connected clients working on the same document.
+Socket.IO provides event-based communication, rooms, reconnection support, and real-time broadcasting.
 
-### Why MongoDB?
+### Why MongoDB update logs?
 
-MongoDB stores application entities and binary Yjs snapshots. The active Y.Doc remains in memory for efficient synchronization, while stored snapshots support persistence and restoration.
+Storing individual Yjs updates provides a durable history of changes since the latest snapshot. The server can reconstruct document state after a restart.
 
-### Why debounce database writes?
+### Why snapshot compaction?
 
-Debouncing reduces unnecessary database operations during rapid typing. It must be combined with proper save coordination so pending or overlapping writes cannot overwrite a restored state.
+Replaying a very large update log on every document load can become expensive. Compaction consolidates the current state into a new snapshot and removes updates already included in that snapshot.
 
-### Why HTTP-only cookies?
+### Why Redis?
 
-They keep the JWT inaccessible to ordinary frontend JavaScript and reduce one avenue of token theft. Cookie-based authentication still requires careful CORS, SameSite, and CSRF configuration.
+The Socket.IO Redis adapter allows broadcasts to reach clients connected to different backend instances. A separate Redis Pub/Sub channel propagates Yjs updates between backend instances so their local Y.Doc caches can stay synchronized.
+
+Redis Pub/Sub is not itself durable storage. MongoDB remains the persistence layer.
 
 ### Why document generations?
 
-Restoring a snapshot replaces the server's active Y.Doc. Generation checks help reject updates from clients that still belong to the earlier document session. They complement CRDT synchronization; they do not replace it.
-
-### Why Redis later?
-
-A single Socket.IO server can manage its own rooms and connected clients. When multiple backend instances are introduced, clients may connect to different instances. Redis Pub/Sub or a suitable Socket.IO adapter can help distribute events across instances.
-
-Redis alone does not solve distributed persistence, authentication, document ownership, or concurrency control.
+Restoring a document changes its current state. Generation checks help reject updates from clients that still belong to an earlier document state.
 
 ---
 
 ## 🚧 Known Limitations and Future Work
 
-The project is functional, but several areas need additional hardening before it should be described as production-ready.
+SyncSpace has implemented several important backend systems, but further work is needed before production deployment.
 
-### Persistence and consistency
+### Backend persistence
 
-- Serialize or otherwise coordinate database saves and version restores.
-- Ensure an older in-flight save cannot overwrite a restored snapshot.
-- Handle database failures, retries, and shutdown-time flushing.
-- Consider migration for documents created before Yjs-state persistence was introduced.
+- Implement automatic threshold-based snapshot compaction.
+- Add robust retry and failure handling.
+- Test recovery after unexpected backend termination.
+- Handle missed Redis Pub/Sub notifications and stale backend caches.
+- Further harden concurrent update and restore operations.
 
-### Collaboration and scaling
+### Distributed collaboration
 
-- Integrate Redis with Socket.IO when horizontal scaling is introduced.
-- Coordinate document state across backend instances.
-- Define a robust distributed document-loading and persistence strategy.
-- Test reconnects, concurrent joins, and simultaneous edits under load.
+- Test concurrent edits across multiple backend instances.
+- Test document loading and restoration across instances.
+- Improve distributed document coordination.
+- Test reconnects and server failures under load.
+
+### Frontend development
+
+- Complete frontend authentication and API integration.
+- Build the document dashboard.
+- Build and polish the collaborative editor interface.
+- Integrate live cursors and collaborator presence.
+- Build sharing and permission management UI.
+- Integrate version history and restoration UI.
+- Improve responsive layouts and error handling.
 
 ### Security
 
-- Review cookie security settings and CSRF protections.
-- Validate all Socket.IO event payloads.
-- Rate-limit sensitive endpoints and protect against abusive update traffic.
-- Test every role against both REST endpoints and socket events.
+- Validate all Socket.IO payloads.
+- Review cookie security and CSRF protections.
+- Rate-limit sensitive endpoints.
+- Test all permission levels across REST and Socket.IO operations.
 
-### Testing and deployment
+### Deployment
 
-- Add automated tests for permissions, snapshots, restoration, and concurrent updates.
-- Add integration tests for persistence and reconnect behavior.
-- Add Docker health checks, structured logging, and graceful shutdown.
-- Configure deployment, HTTPS, monitoring, and load balancing.
+- Complete Docker configuration.
+- Configure Nginx and reverse proxying.
+- Add graceful shutdown and health checks.
+- Set up HTTPS, logging, and monitoring.
+- Deploy the frontend, backend, MongoDB, and Redis infrastructure.
 
 ---
 
