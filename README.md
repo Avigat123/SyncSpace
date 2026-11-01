@@ -83,7 +83,7 @@ The application uses:
 | Snapshot-based document recovery | Implemented and tested |
 | Unique compound update index | Implemented |
 | Manual Yjs snapshot compaction | Implemented and tested |
-| Automatic snapshot compaction | Remaining work |
+| Automatic threshold-based snapshot compaction | Implemented and tested |
 | Distributed persistence hardening | Remaining work |
 | Production deployment | Planned |
 
@@ -111,32 +111,32 @@ The application uses:
 ```text
                      React Frontend
                            |
-              +------------+------------+
-              |                         |
-           REST API                 Socket.IO
-              |                         |
-              v                         v
-        Express Backend           Socket Handlers
-              |                         |
-      +-------+--------+                |
-      |                |                v
-      v                v          Server-side Y.Doc
- Auth Services   Document Services       |
-      |                |                 |
-      +----------------+-----------------+
+               +-----------+-----------+
+               |                       |
+            REST API                Socket.IO
+               |                       |
+               v                       v
+         Express Backend          Socket Handlers
+               |                       |
+       +-------+--------+              |
+       |                |              v
+       v                v        Server-side Y.Doc
+  Auth Services   Document Services    |
+       |                |              |
+       +----------------+--------------+
                        |
-             +---------+---------+
-             |                   |
-             v                   v
-          MongoDB              Redis
-             |                   |
-     +-------+--------+          |
-     |       |        |          |
-     v       v        v          v
- Documents  Yjs     Versions   Pub/Sub
- Metadata   Updates             |
-     |       |                  |
-     +-------+------------------+
+              +--------+--------+
+              |                 |
+              v                 v
+           MongoDB             Redis
+              |                 |
+      +-------+--------+        |
+      |       |        |        |
+      v       v        v        v
+  Documents  Yjs    Versions  Pub/Sub
+  Metadata  Updates            |
+      |       |                |
+      +-------+----------------+
                        |
                  Socket.IO Redis
                     Adapter
@@ -403,7 +403,7 @@ As users edit documents, individual Yjs updates accumulate in the `yjsupdates` c
 
 Keeping every update indefinitely can increase storage usage and recovery time.
 
-SyncSpace implements **manual snapshot compaction** to consolidate persisted updates into a new snapshot.
+SyncSpace implements **automatic threshold-based snapshot compaction** to consolidate persisted updates into a new snapshot. Compaction is triggered when the number of updates after the latest snapshot reaches the configured threshold.
 
 ### Compaction process
 
@@ -447,11 +447,11 @@ Snapshot replacement and deletion of included update records happen inside the s
 
 This ensures that the new snapshot and corresponding update-log cleanup commit together.
 
-The service also checks that the update log is complete before advancing the snapshot sequence.
+The service also checks that the update log is complete before advancing the snapshot sequence. The snapshot update and deletion of included update records are committed together, so a failed transaction does not leave a partially compacted document.
 
-### Manual compaction verification
+### Compaction verification
 
-The first manual compaction test was performed using an existing SyncSpace document.
+Manual compaction was tested using an existing SyncSpace document. The test reconstructed the document before and after compaction and compared the resulting Yjs state.
 
 | Metric | Before | After |
 |---|---:|---:|
@@ -470,7 +470,7 @@ Encoded state preserved: true
 
 This confirms that the reconstructed Yjs state was preserved through the tested compaction and recovery cycle.
 
-**Current status:** Manual compaction is implemented and tested. Automatic threshold-based compaction and further concurrent multi-instance testing remain future work.
+**Current status:** Manual and automatic threshold-based compaction are implemented and tested. Automatic compaction was exercised with a temporary lower threshold during testing; the production threshold is configured at 100 pending updates. Further distributed persistence hardening and multi-instance failure testing remain future work.
 
 ---
 
@@ -823,7 +823,6 @@ SyncSpace has implemented several important backend systems, but further work is
 
 ### Backend persistence
 
-- Implement automatic threshold-based snapshot compaction.
 - Add robust retry and failure handling.
 - Test recovery after unexpected backend termination.
 - Handle missed Redis Pub/Sub notifications and stale backend caches.
