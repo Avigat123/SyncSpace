@@ -24,10 +24,14 @@ export async function compactYjsDocument(documentId) {
                 const updateSequence = document.updateSequence ?? 0;
 
                 // Nothing new needs to be compacted.
-                if (updateSequence <= snapshotSequence) {
+                const pendingUpdates = updateSequence - snapshotSequence;
+
+                // Avoid compacting too frequently.
+                if (pendingUpdates < 100) {
                     result = {
                         compacted: false,
-                        reason: "No new updates",
+                        reason: "Threshold not reached",
+                        pendingUpdates,
                     };
                     return;
                 }
@@ -40,9 +44,7 @@ export async function compactYjsDocument(documentId) {
                         $gt: snapshotSequence,
                         $lte: updateSequence,
                     },
-                })
-                    .sort({ sequence: 1 })
-                    .session(session);
+                }).sort({ sequence: 1 }).session(session);
 
                 // Never advance the snapshot over missing updates.
                 const expectedUpdates = updateSequence - snapshotSequence;
