@@ -5,6 +5,7 @@ import Document from "../models/document.model.js";
 import Version from "../models/version.model.js";
 import ApiError from "../utils/ApiError.js";
 import { getIO } from "../socket/socketInstance.js";
+import { publishDocumentRestore } from "../socket/yjsRedis.js";
 import { createVersion } from "../services/version.service.js";
 import { getYDoc } from "../socket/yjsStore.js";
 import { restoreVersionState } from "../services/versionRestore.service.js";
@@ -189,6 +190,10 @@ export const restoreVersion = asyncHandler(async (req, res) => {
         versionId
     );
 
+    // Notify other backend instances through Redis.
+    await publishDocumentRestore(documentId, generation);
+
+    // Notify connected clients through Socket.IO.
     const io = getIO();
 
     io.to(documentId).emit("document-restored", {

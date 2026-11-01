@@ -1,20 +1,16 @@
+import mongoose from "mongoose";
 import * as Y from "yjs";
 import Version from "../models/version.model.js";
 import Document from "../models/document.model.js";
+import YjsUpdate from "../models/yjsUpdate.model.js";
 import { setYDoc } from "../socket/yjsStore.js";
-import { saveTimers, incrementDocumentGeneration, withDocumentWriteLock } from "../socket/store.js";
+import { removeAwareness } from "../socket/awarenessStore.js";
+import { saveTimers, withDocumentWriteLock } from "../socket/store.js";
 
 export async function restoreVersionState(documentId, versionId) {
     console.log("[restoreVersion] Controller reached");
 
-    const [document, version] = await Promise.all([
-        Document.findById(documentId),
-        Version.findById(versionId),
-    ]);
-
-    if (!document) {
-        throw new Error("Document not found");
-    }
+    const version = await Version.findById(versionId);
 
     if (!version || version.document.toString() !== documentId) {
         throw new Error("Version not found for this document");
@@ -24,44 +20,91 @@ export async function restoreVersionState(documentId, versionId) {
         throw new Error("This version has no Yjs snapshot");
     }
 
-
     return withDocumentWriteLock(documentId, async () => {
-        // Cancel any pending debounced save.
-        const timer = saveTimers.get(documentId);
-
-        if (timer) {
-            clearTimeout(timer);
-            saveTimers.delete(documentId);
-        }
-
-        // Invalidate updates from the previous generation immediately.
-        const generation = incrementDocumentGeneration(documentId);
-
-        // Rebuild the Y.Doc from the selected snapshot.
         const restoredYDoc = new Y.Doc();
+        const session = await mongoose.startSession();
 
-        Y.applyUpdate(
-            restoredYDoc,
-            new Uint8Array(version.yjsState)
-        );
+        try {
+            Y.applyUpdate(
+                restoredYDoc,
+                new Uint8Array(version.yjsState)
+            );
 
-        // Persist the restored snapshot.
-        document.title = version.title;
-        document.yjsState = Buffer.from(
-            Y.encodeStateAsUpdate(restoredYDoc)
-        );
+            const restoredState = Y.encodeStateAsUpdate(restoredYDoc);
 
-        await document.save();
+            let document;
 
-        // Replace cached state only after persistence succeeds.
-        const previousYDoc = setYDoc(documentId, restoredYDoc);
+            await session.withTransaction(async () => {
+                // Restore snapshot and advance generation atomically.
+                document = await Document.findOneAndUpdate(
+                    { _id: documentId },
+                    {
+                        $set: {
+                            title: version.title,
+                            yjsState: Buffer.from(restoredState),
+                            updateSequence: 0,
+                            snapshotSequence: 0,
+                        },
+                        $inc: {
+                            generation: 1,
+                        },
+                    },
+                    {
+                        new: true,
+                        runValidators: true,
+                        session,
+                    }
+                );
 
-        return {
-            document,
-            restoredYDoc,
-            previousYDoc,
-            generation,
-        };
+                if (!document) {
+                    throw new Error("Document not found");
+                }
+
+                // Remove update records from previous generations.
+                await YjsUpdate.deleteMany(
+                    { document: documentId },
+                    { session }
+                );
+            });
+
+            // Cancel any pending local save.
+            const timer = saveTimers.get(documentId);
+
+            if (timer) {
+                clearTimeout(timer);
+                saveTimers.delete(documentId);
+            }
+
+            // Clean up old awareness state.
+            removeAwareness(documentId);
+
+            // Replace the local cached Y.Doc.
+            const previousYDoc = setYDoc(
+                documentId,
+                restoredYDoc
+            );
+
+            if (previousYDoc) {
+                previousYDoc.destroy();
+            }
+
+            console.log("[restoreVersion] Successfully restored:", {
+                documentId,
+                generation: document.generation,
+            });
+
+            return {
+                document,
+                restoredYDoc,
+                generation: document.generation,
+            };
+
+        } catch (error) {
+            restoredYDoc.destroy();
+            throw error;
+
+        } finally {
+            await session.endSession();
+        }
     });
-
 }

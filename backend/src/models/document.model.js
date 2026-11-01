@@ -18,6 +18,24 @@ const documentSchema = new mongoose.Schema(
             default: null,
         },
 
+        generation: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
+        updateSequence: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
+        snapshotSequence: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
         owner: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

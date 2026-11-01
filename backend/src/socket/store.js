@@ -1,3 +1,4 @@
+import Document from "../models/document.model.js";
 /**
  * Stores debounced save timers for each document.
  * Key: documentId
@@ -77,4 +78,13 @@ export function cleanupDocumentState(documentId) {
 
     // Remove document generation
     documentGenerations.delete(documentId);
+}
+
+export async function getSharedDocumentGeneration(documentId) {
+    const document = await Document.findById(documentId)
+        .select("generation");
+
+    if (!document) return null;
+
+    return document.generation ?? 0;
 }
