@@ -24,7 +24,10 @@ export const getUserDocuments = async (userId) => {
             { owner: userId },
             { "collaborators.user": userId },
         ],
-    }).sort({
+    })
+    .populate("owner", "name email")
+    .populate("collaborators.user", "name email")
+    .sort({
         updatedAt: -1,
     });
 };
@@ -185,7 +188,10 @@ export const getTrashDocuments = async (userId) => {
         owner: userId,
         isDeleted: true,
         deletedAt: { $gte: cutoffDate },
-    }).sort({
+    })
+    .populate("owner", "name email")
+    .populate("collaborators.user", "name email")
+    .sort({
         deletedAt: -1,
     });
 };

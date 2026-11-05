@@ -134,7 +134,7 @@ function DashboardPage() {
 
   return (
     <div className="w-full px-4 sm:px-space-xl py-space-lg flex flex-col gap-space-lg max-w-[1240px] mx-auto animate-in fade-in duration-200">
-      {/* Workspace Greeting & Quick Action Hero Block */}
+      {/* Workspace Greeting & Dashboard Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-space-md pt-space-xs">
         <div className="flex flex-col gap-1 min-w-0">
           <div className="flex items-center gap-space-xs text-on-surface-variant flex-wrap">
@@ -155,12 +155,13 @@ function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-space-sm flex-shrink-0">
+        {/* Dashboard Actions: New Document */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           <button
             type="button"
             onClick={() => handleCreateDocument("Untitled Document")}
             disabled={creating}
-            className="group flex items-center gap-space-sm bg-primary hover:bg-primary-container text-on-primary px-space-md py-space-sm rounded-lg shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-60"
+            className="group flex items-center gap-space-sm bg-primary hover:bg-primary-container text-on-primary px-space-md py-2.5 rounded-xl shadow-sm transition-all duration-150 cursor-pointer disabled:opacity-60"
           >
             <span className="material-symbols-outlined text-[18px] transition-transform group-hover:rotate-90">
               add
@@ -172,8 +173,8 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Velocity Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-space-md">
+      {/* Velocity Stats (3 Balanced Columns - Yjs Engine card removed) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-md">
         <div className="p-space-md rounded-xl bg-surface-container-low shadow-xs flex items-center justify-between">
           <div className="flex flex-col min-w-0">
             <span className="font-label-sm text-label-sm text-outline uppercase tracking-wider truncate">
@@ -225,107 +226,81 @@ function DashboardPage() {
             <span className="material-symbols-outlined text-[20px]">group</span>
           </div>
         </div>
-
-        <div className="p-space-md rounded-xl bg-surface-container-low shadow-xs flex items-center justify-between">
-          <div className="flex flex-col min-w-0">
-            <span className="font-label-sm text-label-sm text-outline uppercase tracking-wider truncate">
-              Yjs Engine
-            </span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="font-headline-md text-headline-md text-on-surface">
-                CRDT
-              </span>
-              <span className="font-code-sm text-code-sm text-tertiary bg-tertiary-fixed/30 px-1 py-0.5 rounded text-[10px]">
-                Optimal
-              </span>
-            </div>
-            <span className="font-body-sm text-body-sm text-on-surface-variant mt-0.5 truncate">
-              Zero merge conflict
-            </span>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary-container flex-shrink-0">
-            <span className="material-symbols-outlined text-[20px]">hub</span>
-          </div>
-        </div>
       </div>
 
-      {/* Main Content Area: Trash View or Document Table Panel */}
-      {currentFilter === "trash" ? (
-        <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-[#E8E8E5] p-space-lg">
-          <TrashView onDocumentRestored={fetchDocs} />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-space-md bg-surface-container-lowest rounded-xl shadow-xs border border-[#E8E8E5] overflow-hidden p-space-lg">
-          {/* Toolbar & Filter Controls */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md pb-space-sm border-b border-[#E8E8E5]/60">
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 p-1 bg-surface-container rounded-lg self-start overflow-x-auto max-w-full">
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard")}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer whitespace-nowrap ${currentFilter === "all"
-                  ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-              >
-                All Documents
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard?filter=recent")}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${currentFilter === "recent"
-                  ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-              >
-                <span className="material-symbols-outlined text-[14px]">schedule</span>
-                Recent
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard?filter=owned")}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer whitespace-nowrap ${currentFilter === "owned"
-                  ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-              >
-                Owned by Me
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard?filter=shared")}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer whitespace-nowrap ${currentFilter === "shared"
-                  ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-              >
-                Shared with Me
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard?filter=starred")}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${currentFilter === "starred"
-                  ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-              >
-                <span className="material-symbols-outlined text-[14px]">star</span>
-                Starred
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard?filter=trash")}
-                className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${currentFilter === "trash"
-                  ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-              >
-                <span className="material-symbols-outlined text-[14px]">delete</span>
-                Trash
-              </button>
-            </div>
+      {/* Main Panel with Always-Visible Tabs and Content */}
+      <div className="flex flex-col gap-space-md bg-surface-container-lowest rounded-xl shadow-xs border border-[#E8E8E5] overflow-hidden p-space-lg">
+        {/* Toolbar & Filter Controls (Always visible so users can switch tabs easily) */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md pb-space-sm border-b border-[#E8E8E5]/60">
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-surface-container rounded-lg self-start overflow-x-auto max-w-full">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer whitespace-nowrap ${currentFilter === "all"
+                ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
+                : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              All Documents
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard?filter=recent")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${currentFilter === "recent"
+                ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
+                : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              <span className="material-symbols-outlined text-[14px]">schedule</span>
+              Recent
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard?filter=owned")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer whitespace-nowrap ${currentFilter === "owned"
+                ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
+                : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              Owned by Me
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard?filter=shared")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer whitespace-nowrap ${currentFilter === "shared"
+                ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
+                : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              Shared with Me
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard?filter=starred")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${currentFilter === "starred"
+                ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
+                : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              <span className="material-symbols-outlined text-[14px]">star</span>
+              Starred
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard?filter=trash")}
+              className={`px-3 py-1.5 rounded-md font-label-md text-label-md transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${currentFilter === "trash"
+                ? "text-on-surface bg-surface-container-lowest shadow-xs font-semibold"
+                : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              <span className="material-symbols-outlined text-[14px]">delete</span>
+              Trash
+            </button>
+          </div>
 
-            {/* Search Bar and View Switchers */}
+          {/* Search Bar and View Switchers (Visible when not in trash) */}
+          {currentFilter !== "trash" && (
             <div className="flex items-center gap-space-sm flex-1 lg:max-w-md justify-end">
               <div className="relative w-full max-w-sm">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -376,133 +351,143 @@ function DashboardPage() {
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Recent notice banner */}
-          {currentFilter === "recent" && (
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container/60 border border-[#E8E8E5] text-on-surface-variant text-xs sm:text-sm font-medium">
-              <span className="material-symbols-outlined text-[18px] text-primary">schedule</span>
-              <span>Shows only top 10 recent documents</span>
-            </div>
-          )}
-
-          {/* Error message */}
-          {error && (
-            <div className="p-4 rounded-xl bg-error-container text-on-error-container text-body-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px]">error</span>
-                <span>{error}</span>
-              </div>
-              <button
-                type="button"
-                onClick={fetchDocs}
-                className="font-label-md text-label-md underline hover:opacity-80"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Loading Skeleton */}
-          {loading ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                Synchronizing workspace documents…
-              </p>
-            </div>
-          ) : filteredDocuments.length === 0 ? (
-            /* Empty State */
-            <div className="py-16 flex flex-col items-center justify-center text-center px-4">
-              <div className="w-14 h-14 rounded-2xl bg-surface-container-high flex items-center justify-center text-outline mb-3">
-                <span className="material-symbols-outlined text-[32px]">folder_open</span>
-              </div>
-              <h3 className="font-headline-sm text-headline-sm text-on-surface mb-1">
-                {searchQuery ? "No matching documents" : "No documents yet"}
-              </h3>
-              <p className="font-body-sm text-body-sm text-on-surface-variant max-w-sm mb-5">
-                {searchQuery
-                  ? `No documents found matching "${searchQuery}". Try a different search term or clear the filter.`
-                  : "Create your first collaborative document and invite your team to edit in real time."}
-              </p>
-              {searchQuery ? (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="px-4 py-2 bg-surface-container hover:bg-surface-container-high rounded-lg text-on-surface font-label-md text-label-md transition-colors"
-                >
-                  Clear Search
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleCreateDocument("Untitled Document")}
-                  className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-container text-on-primary rounded-lg font-label-md text-label-md transition-colors shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
-                  <span>Create Document</span>
-                </button>
-              )}
-            </div>
-          ) : viewMode === "grid" ? (
-            /* Grid View */
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-space-md">
-              {filteredDocuments.map((doc) => (
-                <DocumentCard
-                  key={doc._id}
-                  document={doc}
-                  userId={userId}
-                  viewMode="grid"
-                  onOpen={(id) => navigate(`/document/${id}`)}
-                  isStarred={starredIds.includes(doc._id)}
-                  onToggleStar={toggleStar}
-                  onDelete={handleMoveToTrash}
-                />
-              ))}
-            </div>
-          ) : (
-            /* List View (Table) */
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-surface-container-low/60 text-outline uppercase font-code-sm text-code-sm">
-                    <th className="py-2.5 px-space-md rounded-l-lg font-medium tracking-wider w-[42%]">
-                      Document Name
-                    </th>
-                    <th className="py-2.5 px-space-md font-medium tracking-wider w-[18%]">
-                      Owner
-                    </th>
-                    <th className="py-2.5 px-space-md font-medium tracking-wider w-[16%]">
-                      Last Modified
-                    </th>
-                    <th className="py-2.5 px-space-md font-medium tracking-wider w-[12%]">
-                      Collaborators
-                    </th>
-                    <th className="py-2.5 px-space-md font-medium tracking-wider w-[8%]">
-                      Access
-                    </th>
-                    <th className="py-2.5 px-space-md rounded-r-lg text-right font-medium tracking-wider w-[4%]"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y-0">
-                  {filteredDocuments.map((doc) => (
-                    <DocumentCard
-                      key={doc._id}
-                      document={doc}
-                      userId={userId}
-                      viewMode="list"
-                      onOpen={(id) => navigate(`/document/${id}`)}
-                      isStarred={starredIds.includes(doc._id)}
-                      onToggleStar={toggleStar}
-                      onDelete={handleMoveToTrash}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
           )}
         </div>
-      )}
+
+        {/* Content Section: Trash View OR Document List/Grid */}
+        {currentFilter === "trash" ? (
+          <TrashView
+            onDocumentRestored={fetchDocs}
+            onBack={() => navigate("/dashboard")}
+          />
+        ) : (
+          <>
+            {/* Recent notice banner */}
+            {currentFilter === "recent" && (
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container/60 border border-[#E8E8E5] text-on-surface-variant text-xs sm:text-sm font-medium">
+                <span className="material-symbols-outlined text-[18px] text-primary">schedule</span>
+                <span>Shows only top 10 recent documents</span>
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && (
+              <div className="p-4 rounded-xl bg-error-container text-on-error-container text-body-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[20px]">error</span>
+                  <span>{error}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchDocs}
+                  className="font-label-md text-label-md underline hover:opacity-80 cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Loading Skeleton */}
+            {loading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  Synchronizing workspace documents…
+                </p>
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              /* Empty State */
+              <div className="py-16 flex flex-col items-center justify-center text-center px-4">
+                <div className="w-14 h-14 rounded-2xl bg-surface-container-high flex items-center justify-center text-outline mb-3">
+                  <span className="material-symbols-outlined text-[32px]">folder_open</span>
+                </div>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface mb-1">
+                  {searchQuery ? "No matching documents" : "No documents yet"}
+                </h3>
+                <p className="font-body-sm text-body-sm text-on-surface-variant max-w-sm mb-5">
+                  {searchQuery
+                    ? `No documents found matching "${searchQuery}". Try a different search term or clear the filter.`
+                    : "Create your first collaborative document and invite your team to edit in real time."}
+                </p>
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="px-4 py-2 bg-surface-container hover:bg-surface-container-high rounded-lg text-on-surface font-label-md text-label-md transition-colors cursor-pointer"
+                  >
+                    Clear Search
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleCreateDocument("Untitled Document")}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-container text-on-primary rounded-lg font-label-md text-label-md transition-colors shadow-sm cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">add</span>
+                    <span>Create Document</span>
+                  </button>
+                )}
+              </div>
+            ) : viewMode === "grid" ? (
+              /* Grid View with responsive columns and clean spacing */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                {filteredDocuments.map((doc) => (
+                  <DocumentCard
+                    key={doc._id}
+                    document={doc}
+                    userId={userId}
+                    viewMode="grid"
+                    onOpen={(id) => navigate(`/document/${id}`)}
+                    isStarred={starredIds.includes(doc._id)}
+                    onToggleStar={toggleStar}
+                    onDelete={handleMoveToTrash}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* List View (Table) */
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container-low/60 text-outline uppercase font-code-sm text-code-sm">
+                      <th className="py-2.5 px-space-md rounded-l-lg font-medium tracking-wider w-[36%]">
+                        Document Name
+                      </th>
+                      <th className="py-2.5 px-space-md font-medium tracking-wider w-[16%]">
+                        Owner
+                      </th>
+                      <th className="py-2.5 px-space-md font-medium tracking-wider w-[16%]">
+                        Last Modified
+                      </th>
+                      <th className="py-2.5 px-space-md font-medium tracking-wider w-[18%]">
+                        Collaborators
+                      </th>
+                      <th className="py-2.5 px-space-md font-medium tracking-wider w-[10%]">
+                        Access
+                      </th>
+                      <th className="py-2.5 px-space-md rounded-r-lg text-right font-medium tracking-wider w-[4%]"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y-0">
+                    {filteredDocuments.map((doc) => (
+                      <DocumentCard
+                        key={doc._id}
+                        document={doc}
+                        userId={userId}
+                        viewMode="list"
+                        onOpen={(id) => navigate(`/document/${id}`)}
+                        isStarred={starredIds.includes(doc._id)}
+                        onToggleStar={toggleStar}
+                        onDelete={handleMoveToTrash}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

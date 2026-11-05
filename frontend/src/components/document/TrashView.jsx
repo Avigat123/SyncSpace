@@ -6,7 +6,7 @@ import {
   emptyTrash,
 } from "../../api/document";
 
-export default function TrashView({ onDocumentRestored }) {
+export default function TrashView({ onDocumentRestored, onBack }) {
   const [trashedDocs, setTrashedDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,26 +98,56 @@ export default function TrashView({ onDocumentRestored }) {
     <div className="space-y-6">
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E8E8E5]">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-on-surface tracking-tight">
-            Recently Deleted
-          </h2>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            Documents in Trash are retained for 30 days before being permanently deleted.
-          </p>
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="p-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container border border-[#E8E8E5] transition-colors cursor-pointer"
+              title="Back to Documents"
+            >
+              <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+            </button>
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-on-surface tracking-tight">
+                Recently Deleted
+              </h2>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400">
+                {trashedDocs.length}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
+              Documents in Trash are retained for 30 days before being permanently deleted.
+            </p>
+          </div>
         </div>
 
-        {trashedDocs.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowEmptyConfirm(true)}
-            disabled={actionInProgress !== null}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-900/60 rounded-lg transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[16px]">delete_forever</span>
-            Empty Trash
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-on-surface hover:bg-surface-container border border-[#E8E8E5] rounded-lg transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+              <span>Back to Documents</span>
+            </button>
+          )}
+
+          {trashedDocs.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowEmptyConfirm(true)}
+              disabled={actionInProgress !== null}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-900/60 rounded-lg transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+              <span>Empty Trash</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading state */}
