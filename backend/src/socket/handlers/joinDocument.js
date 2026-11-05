@@ -15,8 +15,8 @@ export default function joinDocument(io, socket) {
             // 1. Find the document
             const document = await Document.findById(documentId);
 
-            if (!document) {
-                return socket.emit("error", "Document not found");
+            if (!document || document.isDeleted) {
+                return socket.emit("error", "Document not found or has been moved to trash");
             }
 
             // 2. Check ownership / collaborator access BEFORE initializing ydoc

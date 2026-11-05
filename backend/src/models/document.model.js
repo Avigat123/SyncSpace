@@ -56,6 +56,24 @@ const documentSchema = new mongoose.Schema(
             },
         ],
 
+        // Soft deletion fields (30-day retention)
+        isDeleted: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+
+        deletedAt: {
+            type: Date,
+            default: null,
+            index: true,
+        },
+
+        deletedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
     },
     {
         timestamps: true,

@@ -49,3 +49,21 @@ export const updateCollaboratorRole = (documentId, collaboratorId, role) =>
         method: "PATCH",
         body: JSON.stringify({ role }),
     });
+
+export const getTrashDocuments = () =>
+    request("/documents/trash");
+
+export const restoreDocumentFromTrash = (documentId) =>
+    request(`/documents/${documentId}/restore`, {
+        method: "POST",
+    });
+
+export const permanentDeleteDocument = (documentId) =>
+    request(`/documents/${documentId}/permanent`, {
+        method: "DELETE",
+    });
+
+export const emptyTrash = () =>
+    request("/documents/trash/empty", {
+        method: "DELETE",
+    });

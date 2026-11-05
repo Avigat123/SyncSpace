@@ -70,15 +70,15 @@ export const updateDocument = asyncHandler(async (req, res) => {
 export const deleteDocument = asyncHandler(async (req, res) => {
     const documentId = req.params.id;
 
-    // Delete the document and its version history.
-    await documentService.deleteDocument(documentId);
+    // Delete the document (soft delete / move to trash)
+    await documentService.deleteDocument(documentId, req.user._id);
 
     const io = getIO();
 
     // Notify everyone currently viewing this document.
     io.to(documentId).emit("document-deleted", {
         documentId,
-        message: "This document has been deleted by its owner.",
+        message: "This document has been moved to trash by its owner.",
     });
 
     // Disconnect sockets from the deleted document's room.
@@ -96,7 +96,41 @@ export const deleteDocument = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         success: true,
-        message: "Document deleted",
+        message: "Document moved to trash",
+    });
+});
+
+export const getTrashDocuments = asyncHandler(async (req, res) => {
+    const documents = await documentService.getTrashDocuments(req.user._id);
+    res.json({
+        success: true,
+        documents,
+    });
+});
+
+export const restoreDocument = asyncHandler(async (req, res) => {
+    const document = await documentService.restoreDocument(req.params.id, req.user._id);
+    res.json({
+        success: true,
+        message: "Document restored successfully",
+        document,
+    });
+});
+
+export const permanentDeleteDocument = asyncHandler(async (req, res) => {
+    await documentService.permanentDeleteDocument(req.params.id, req.user._id);
+    res.json({
+        success: true,
+        message: "Document permanently deleted",
+    });
+});
+
+export const emptyTrash = asyncHandler(async (req, res) => {
+    const result = await documentService.emptyTrash(req.user._id);
+    res.json({
+        success: true,
+        message: "Trash emptied successfully",
+        deletedCount: result.deletedCount,
     });
 });
 

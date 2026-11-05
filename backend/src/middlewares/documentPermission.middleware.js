@@ -7,7 +7,7 @@ const checkDocumentPermission = (requiredRole) => {
         const id = req.params.id || req.params.documentId;
         const document = await Document.findById(id);
 
-        if(!document){
+        if(!document || document.isDeleted){
             throw new ApiError(404, "Document not found");
         }
         

@@ -168,7 +168,7 @@ function DocumentPage() {
 
   const handleDeleteDocument = async () => {
     const confirmed = window.confirm(
-      "Are you sure you want to permanently delete this document and its entire version history? This cannot be undone."
+      "Are you sure you want to move this document to Trash? It will be retained for 30 days before permanent deletion."
     );
     if (!confirmed) return;
 

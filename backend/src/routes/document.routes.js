@@ -1,20 +1,20 @@
 import express from "express";
-
 import authMiddleware from "../middlewares/auth.middleware.js";
-
-import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument, restoreVersion, getDocumentVersions, removeCollaborator, updateCollaboratorRole } from "../controllers/document.controller.js";
-
-import { createDocumentVersion } from "../controllers/document.controller.js";
-
+import { createDocument, getDocuments, getDocument, updateDocument, deleteDocument, shareDocument, restoreVersion, getDocumentVersions, removeCollaborator, updateCollaboratorRole, getTrashDocuments, permanentDeleteDocument, restoreDocument, createDocumentVersion, emptyTrash } from "../controllers/document.controller.js";
 import checkDocumentPermission from "../middlewares/documentPermission.middleware.js";
 
 const router = express.Router();
-
 router.use(authMiddleware);
 
 // Document creation/listing
 router.post("/", createDocument);
 router.get("/", getDocuments);
+
+// Trash management (must be registered BEFORE /:id to avoid route shadowing)
+router.get("/trash", getTrashDocuments);
+router.delete("/trash/empty", emptyTrash);
+router.post("/:id/restore", restoreDocument);
+router.delete("/:id/permanent", permanentDeleteDocument);
 
 // Single document
 router.get(

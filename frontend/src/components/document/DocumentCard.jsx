@@ -5,6 +5,7 @@ export default function DocumentCard({
   onOpen,
   isStarred,
   onToggleStar,
+  onDelete,
 }) {
   const isOwner =
     (document.owner?._id || document.owner)?.toString() === userId?.toString();
@@ -17,9 +18,9 @@ export default function DocumentCard({
   const role = isOwner
     ? "Owner"
     : currentCollaborator?.role
-    ? currentCollaborator.role.charAt(0).toUpperCase() +
+      ? currentCollaborator.role.charAt(0).toUpperCase() +
       currentCollaborator.role.slice(1)
-    : "Viewer";
+      : "Viewer";
 
   const ownerName = isOwner
     ? "You"
@@ -69,25 +70,41 @@ export default function DocumentCard({
                 description
               </span>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleStar(document._id);
-              }}
-              className={`p-1 rounded-lg transition-colors ${
-                isStarred
+            <div className="flex items-center gap-1">
+              {isOwner && onDelete && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(document);
+                  }}
+                  className="p-1 rounded-lg text-outline hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                  title="Move to Trash"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    delete
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleStar(document._id);
+                }}
+                className={`p-1 rounded-lg transition-colors ${isStarred
                   ? "text-amber-500"
                   : "text-outline hover:text-on-surface"
-              }`}
-            >
-              <span
-                className="material-symbols-outlined text-[18px]"
-                style={{ fontVariationSettings: isStarred ? "'FILL' 1" : "'FILL' 0" }}
+                  }`}
               >
-                star
-              </span>
-            </button>
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  style={{ fontVariationSettings: isStarred ? "'FILL' 1" : "'FILL' 0" }}
+                >
+                  star
+                </span>
+              </button>
+            </div>
           </div>
 
           <h3 className="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors line-clamp-2 mb-1">
@@ -103,11 +120,10 @@ export default function DocumentCard({
             {formatRelativeTime(document.updatedAt)}
           </span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-medium font-code-sm ${
-              role === "Owner"
-                ? "bg-primary-fixed/50 text-on-primary-fixed-variant"
-                : "bg-surface-container text-on-surface-variant"
-            }`}
+            className={`px-2 py-0.5 rounded-full text-[11px] font-medium font-code-sm ${role === "Owner"
+              ? "bg-primary-fixed/50 text-on-primary-fixed-variant"
+              : "bg-surface-container text-on-surface-variant"
+              }`}
           >
             {role}
           </span>
@@ -140,9 +156,8 @@ export default function DocumentCard({
                   e.stopPropagation();
                   onToggleStar(document._id);
                 }}
-                className={`p-0.5 rounded transition-colors ${
-                  isStarred ? "text-amber-500" : "text-outline/40 hover:text-outline"
-                }`}
+                className={`p-0.5 rounded transition-colors ${isStarred ? "text-amber-500" : "text-outline/40 hover:text-outline"
+                  }`}
               >
                 <span
                   className="material-symbols-outlined text-[16px]"
@@ -151,11 +166,6 @@ export default function DocumentCard({
                   star
                 </span>
               </button>
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="font-code-sm text-code-sm bg-surface-container px-1.5 py-0.2 rounded text-on-surface-variant text-[11px]">
-                SyncSpace Doc
-              </span>
             </div>
           </div>
         </div>
@@ -211,11 +221,10 @@ export default function DocumentCard({
 
       <td className="py-space-md px-space-md">
         <span
-          className={`font-code-sm text-code-sm px-2 py-0.5 rounded-full font-medium ${
-            role === "Owner"
-              ? "bg-primary-fixed/50 text-on-primary-fixed-variant"
-              : "bg-surface-container text-on-surface-variant"
-          }`}
+          className={`font-code-sm text-code-sm px-2 py-0.5 rounded-full font-medium ${role === "Owner"
+            ? "bg-primary-fixed/50 text-on-primary-fixed-variant"
+            : "bg-surface-container text-on-surface-variant"
+            }`}
         >
           {role}
         </span>
@@ -223,6 +232,21 @@ export default function DocumentCard({
 
       <td className="py-space-md px-space-md text-right rounded-r-lg">
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {isOwner && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(document);
+              }}
+              className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 text-outline hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              title="Move to Trash"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                delete
+              </span>
+            </button>
+          )}
           <button
             type="button"
             className="p-1 rounded hover:bg-surface-container text-on-surface-variant hover:text-on-surface"
