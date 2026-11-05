@@ -1,36 +1,28 @@
-import { Outlet, useNavigate } from "react-router-dom";
-import { logout } from "../api/auth.js";
-import useAuth from "../hooks/useAuth";
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "../components/layout/Sidebar";
+import Header from "../components/layout/Header";
 
 function MainLayout() {
-    const navigate = useNavigate();
-    const { setUser } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const handleLogout = async () => {
-        try {
-            await logout();
-            setUser(null);
-            navigate("/login", { replace: true });
-        } catch (error) {
-            console.error("Logout failed:", error);
-        }
-    };
+  return (
+    <div className="min-h-screen bg-surface font-sans text-on-surface antialiased flex">
+      {/* Fixed Sidebar */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-    return (
-        <div>
-            <header>
-                <h2>SyncSpace</h2>
-
-                <button onClick={handleLogout}>
-                    Logout
-                </button>
-            </header>
-
-            <main>
-                <Outlet />
-            </main>
-        </div>
-    );
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen w-full">
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="w-full pt-16 flex-1 bg-surface">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
 }
 
 export default MainLayout;
