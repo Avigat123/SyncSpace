@@ -18,22 +18,22 @@ export const Subscript = Mark.create({
     return {
       toggleSubscript:
         () =>
-          ({ commands, editor }) => {
-            if (editor.isActive("superscript")) {
-              commands.unsetMark("superscript");
-            }
-            return commands.toggleMark("subscript");
-          },
+        ({ commands, editor }) => {
+          if (editor.isActive("superscript")) {
+            commands.unsetMark("superscript");
+          }
+          return commands.toggleMark("subscript");
+        },
       setSubscript:
         () =>
-          ({ commands }) => {
-            commands.unsetMark("superscript");
-            return commands.setMark("subscript");
-          },
+        ({ commands }) => {
+          commands.unsetMark("superscript");
+          return commands.setMark("subscript");
+        },
       unsetSubscript:
         () =>
-          ({ commands }) =>
-            commands.unsetMark("subscript"),
+        ({ commands }) =>
+          commands.unsetMark("subscript"),
     };
   },
 });
@@ -56,28 +56,28 @@ export const Superscript = Mark.create({
     return {
       toggleSuperscript:
         () =>
-          ({ commands, editor }) => {
-            if (editor.isActive("subscript")) {
-              commands.unsetMark("subscript");
-            }
-            return commands.toggleMark("superscript");
-          },
+        ({ commands, editor }) => {
+          if (editor.isActive("subscript")) {
+            commands.unsetMark("subscript");
+          }
+          return commands.toggleMark("superscript");
+        },
       setSuperscript:
         () =>
-          ({ commands }) => {
-            commands.unsetMark("subscript");
-            return commands.setMark("superscript");
-          },
+        ({ commands }) => {
+          commands.unsetMark("subscript");
+          return commands.setMark("superscript");
+        },
       unsetSuperscript:
         () =>
-          ({ commands }) =>
-            commands.unsetMark("superscript"),
+        ({ commands }) =>
+          commands.unsetMark("superscript"),
     };
   },
 });
 
 /**
- * TextStyle mark: <span> with color & fontSize attributes and commands
+ * TextStyle mark: <span> with color, fontSize, and fontFamily attributes & commands
  */
 export const TextStyle = Mark.create({
   name: "textStyle",
@@ -100,6 +100,17 @@ export const TextStyle = Mark.create({
           return { style: `font-size: ${attributes.fontSize}` };
         },
       },
+      fontFamily: {
+        default: null,
+        parseHTML: (element) =>
+          element.style?.fontFamily
+            ? element.style.fontFamily.replace(/['"]/g, "")
+            : null,
+        renderHTML: (attributes) => {
+          if (!attributes.fontFamily) return {};
+          return { style: `font-family: ${attributes.fontFamily}` };
+        },
+      },
     };
   },
 
@@ -110,7 +121,8 @@ export const TextStyle = Mark.create({
         getAttrs: (element) => {
           const hasColor = element.style?.color;
           const hasFontSize = element.style?.fontSize;
-          return hasColor || hasFontSize ? {} : false;
+          const hasFontFamily = element.style?.fontFamily;
+          return hasColor || hasFontSize || hasFontFamily ? {} : false;
         },
       },
     ];
@@ -124,32 +136,46 @@ export const TextStyle = Mark.create({
     return {
       setColor:
         (color) =>
-          ({ commands }) => {
-            return commands.setMark("textStyle", { color });
-          },
+        ({ commands }) => {
+          return commands.setMark("textStyle", { color });
+        },
       unsetColor:
         () =>
-          ({ commands, editor }) => {
-            const currentAttrs = editor.getAttributes("textStyle") || {};
-            if (!currentAttrs.fontSize) {
-              return commands.unsetMark("textStyle");
-            }
-            return commands.resetAttributes("textStyle", "color");
-          },
+        ({ commands, editor }) => {
+          const currentAttrs = editor.getAttributes("textStyle") || {};
+          if (!currentAttrs.fontSize && !currentAttrs.fontFamily) {
+            return commands.unsetMark("textStyle");
+          }
+          return commands.resetAttributes("textStyle", "color");
+        },
       setFontSize:
         (fontSize) =>
-          ({ commands }) => {
-            return commands.setMark("textStyle", { fontSize });
-          },
+        ({ commands }) => {
+          return commands.setMark("textStyle", { fontSize });
+        },
       unsetFontSize:
         () =>
-          ({ commands, editor }) => {
-            const currentAttrs = editor.getAttributes("textStyle") || {};
-            if (!currentAttrs.color) {
-              return commands.unsetMark("textStyle");
-            }
-            return commands.resetAttributes("textStyle", "fontSize");
-          },
+        ({ commands, editor }) => {
+          const currentAttrs = editor.getAttributes("textStyle") || {};
+          if (!currentAttrs.color && !currentAttrs.fontFamily) {
+            return commands.unsetMark("textStyle");
+          }
+          return commands.resetAttributes("textStyle", "fontSize");
+        },
+      setFontFamily:
+        (fontFamily) =>
+        ({ commands }) => {
+          return commands.setMark("textStyle", { fontFamily });
+        },
+      unsetFontFamily:
+        () =>
+        ({ commands, editor }) => {
+          const currentAttrs = editor.getAttributes("textStyle") || {};
+          if (!currentAttrs.color && !currentAttrs.fontSize) {
+            return commands.unsetMark("textStyle");
+          }
+          return commands.resetAttributes("textStyle", "fontFamily");
+        },
     };
   },
 });
@@ -196,23 +222,23 @@ export const TextAlign = Extension.create({
     return {
       setTextAlign:
         (alignment) =>
-          ({ commands }) => {
-            if (!this.options.alignments.includes(alignment)) {
-              return false;
-            }
-            return this.options.types
-              .map((type) =>
-                commands.updateAttributes(type, { textAlign: alignment })
-              )
-              .some((res) => res);
-          },
+        ({ commands }) => {
+          if (!this.options.alignments.includes(alignment)) {
+            return false;
+          }
+          return this.options.types
+            .map((type) =>
+              commands.updateAttributes(type, { textAlign: alignment })
+            )
+            .some((res) => res);
+        },
       unsetTextAlign:
         () =>
-          ({ commands }) => {
-            return this.options.types
-              .map((type) => commands.resetAttributes(type, "textAlign"))
-              .some((res) => res);
-          },
+        ({ commands }) => {
+          return this.options.types
+            .map((type) => commands.resetAttributes(type, "textAlign"))
+            .some((res) => res);
+        },
     };
   },
 });
