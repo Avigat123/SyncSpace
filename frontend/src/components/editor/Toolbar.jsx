@@ -1,65 +1,229 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useEditorState } from "@tiptap/react";
 
 const FONT_FAMILIES = [
+  // Modern & Sans-serif
   {
     label: "Inter (Sans-serif)",
     value: "Inter, ui-sans-serif, system-ui, sans-serif",
     shortName: "Inter",
-    fontClass: "font-sans",
+    category: "Sans-serif",
   },
   {
-    label: "Newsreader (Serif)",
-    value: "Newsreader, Georgia, serif",
-    shortName: "Newsreader",
-    fontClass: "font-serif",
+    label: "Roboto",
+    value: "Roboto, ui-sans-serif, sans-serif",
+    shortName: "Roboto",
+    category: "Sans-serif",
   },
   {
-    label: "JetBrains Mono (Code)",
-    value: '"JetBrains Mono", ui-monospace, monospace',
-    shortName: "JetBrains Mono",
-    fontClass: "font-mono",
+    label: "Open Sans",
+    value: '"Open Sans", ui-sans-serif, sans-serif',
+    shortName: "Open Sans",
+    category: "Sans-serif",
+  },
+  {
+    label: "Lato",
+    value: "Lato, ui-sans-serif, sans-serif",
+    shortName: "Lato",
+    category: "Sans-serif",
+  },
+  {
+    label: "Montserrat",
+    value: "Montserrat, ui-sans-serif, sans-serif",
+    shortName: "Montserrat",
+    category: "Sans-serif",
+  },
+  {
+    label: "Poppins",
+    value: "Poppins, ui-sans-serif, sans-serif",
+    shortName: "Poppins",
+    category: "Sans-serif",
+  },
+  {
+    label: "Raleway",
+    value: "Raleway, ui-sans-serif, sans-serif",
+    shortName: "Raleway",
+    category: "Sans-serif",
+  },
+  {
+    label: "Nunito",
+    value: "Nunito, ui-sans-serif, sans-serif",
+    shortName: "Nunito",
+    category: "Sans-serif",
+  },
+  {
+    label: "Ubuntu",
+    value: "Ubuntu, ui-sans-serif, sans-serif",
+    shortName: "Ubuntu",
+    category: "Sans-serif",
   },
   {
     label: "Arial",
     value: "Arial, Helvetica, sans-serif",
     shortName: "Arial",
-    fontClass: "font-sans",
+    category: "Sans-serif",
   },
   {
-    label: "Georgia",
-    value: "Georgia, serif",
-    shortName: "Georgia",
-    fontClass: "font-serif",
-  },
-  {
-    label: "Times New Roman",
-    value: '"Times New Roman", Times, serif',
-    shortName: "Times New Roman",
-    fontClass: "font-serif",
-  },
-  {
-    label: "Courier New",
-    value: '"Courier New", Courier, monospace',
-    shortName: "Courier New",
-    fontClass: "font-mono",
+    label: "Helvetica",
+    value: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    shortName: "Helvetica",
+    category: "Sans-serif",
   },
   {
     label: "Verdana",
     value: "Verdana, Geneva, sans-serif",
     shortName: "Verdana",
-    fontClass: "font-sans",
+    category: "Sans-serif",
+  },
+  {
+    label: "Segoe UI",
+    value: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+    shortName: "Segoe UI",
+    category: "Sans-serif",
+  },
+  {
+    label: "Tahoma",
+    value: "Tahoma, Verdana, Segoe, sans-serif",
+    shortName: "Tahoma",
+    category: "Sans-serif",
   },
   {
     label: "Trebuchet MS",
     value: '"Trebuchet MS", sans-serif',
     shortName: "Trebuchet MS",
-    fontClass: "font-sans",
+    category: "Sans-serif",
+  },
+
+  // Editorial & Serif
+  {
+    label: "Newsreader (Serif)",
+    value: "Newsreader, Georgia, serif",
+    shortName: "Newsreader",
+    category: "Serif",
+  },
+  {
+    label: "Georgia",
+    value: "Georgia, serif",
+    shortName: "Georgia",
+    category: "Serif",
+  },
+  {
+    label: "Times New Roman",
+    value: '"Times New Roman", Times, serif',
+    shortName: "Times New Roman",
+    category: "Serif",
+  },
+  {
+    label: "Garamond",
+    value: 'Garamond, "EB Garamond", serif',
+    shortName: "Garamond",
+    category: "Serif",
+  },
+  {
+    label: "Playfair Display",
+    value: '"Playfair Display", Georgia, serif',
+    shortName: "Playfair Display",
+    category: "Serif",
+  },
+  {
+    label: "Merriweather",
+    value: "Merriweather, Georgia, serif",
+    shortName: "Merriweather",
+    category: "Serif",
+  },
+  {
+    label: "Lora",
+    value: "Lora, Georgia, serif",
+    shortName: "Lora",
+    category: "Serif",
+  },
+  {
+    label: "PT Serif",
+    value: '"PT Serif", Georgia, serif',
+    shortName: "PT Serif",
+    category: "Serif",
+  },
+  {
+    label: "Palatino",
+    value: '"Palatino Linotype", Palatino, serif',
+    shortName: "Palatino",
+    category: "Serif",
+  },
+  {
+    label: "Cambria",
+    value: "Cambria, Georgia, serif",
+    shortName: "Cambria",
+    category: "Serif",
+  },
+  {
+    label: "Book Antiqua",
+    value: '"Book Antiqua", Palatino, serif',
+    shortName: "Book Antiqua",
+    category: "Serif",
+  },
+
+  // Monospace & Code
+  {
+    label: "JetBrains Mono (Code)",
+    value: '"JetBrains Mono", ui-monospace, monospace',
+    shortName: "JetBrains Mono",
+    category: "Monospace",
+  },
+  {
+    label: "Fira Code",
+    value: '"Fira Code", ui-monospace, monospace',
+    shortName: "Fira Code",
+    category: "Monospace",
+  },
+  {
+    label: "Source Code Pro",
+    value: '"Source Code Pro", ui-monospace, monospace',
+    shortName: "Source Code Pro",
+    category: "Monospace",
+  },
+  {
+    label: "Inconsolata",
+    value: "Inconsolata, ui-monospace, monospace",
+    shortName: "Inconsolata",
+    category: "Monospace",
+  },
+  {
+    label: "Courier New",
+    value: '"Courier New", Courier, monospace',
+    shortName: "Courier New",
+    category: "Monospace",
+  },
+  {
+    label: "Consolas",
+    value: "Consolas, monospace",
+    shortName: "Consolas",
+    category: "Monospace",
+  },
+
+  // Creative & Handwriting
+  {
+    label: "Caveat (Handwriting)",
+    value: "Caveat, cursive",
+    shortName: "Caveat",
+    category: "Handwriting",
+  },
+  {
+    label: "Pacifico",
+    value: "Pacifico, cursive",
+    shortName: "Pacifico",
+    category: "Handwriting",
   },
   {
     label: "Comic Sans MS",
     value: '"Comic Sans MS", cursive, sans-serif',
     shortName: "Comic Sans",
-    fontClass: "font-sans",
+    category: "Display",
+  },
+  {
+    label: "Impact",
+    value: "Impact, Charcoal, sans-serif",
+    shortName: "Impact",
+    category: "Display",
   },
 ];
 
@@ -81,46 +245,151 @@ const PRESET_FONT_SIZES = [
   { label: "72px", value: "72px" },
 ];
 
+function matchFontFamilyName(raw) {
+  if (!raw) return "Inter";
+  const cleanRaw = raw.toLowerCase().trim();
+
+  // 1. Exact value match
+  const exact = FONT_FAMILIES.find((f) => f.value.toLowerCase() === cleanRaw);
+  if (exact) return exact.shortName;
+
+  // 2. Primary family match (first font in the comma-separated font stack)
+  const primaryName = cleanRaw.split(",")[0].replace(/['"]/g, "").trim();
+  const primaryMatch = FONT_FAMILIES.find((f) => {
+    const sName = f.shortName.toLowerCase();
+    const fPrimary = f.value.toLowerCase().split(",")[0].replace(/['"]/g, "").trim();
+    return (
+      sName === primaryName ||
+      fPrimary === primaryName ||
+      primaryName.startsWith(sName) ||
+      sName.startsWith(primaryName)
+    );
+  });
+  if (primaryMatch) return primaryMatch.shortName;
+
+  // 3. Fallback to clean name
+  return raw.split(",")[0].replace(/['"]/g, "").trim() || "Inter";
+}
+
 export default function Toolbar({ editor }) {
   const [activeMenu, setActiveMenu] = useState(null); // 'heading' | 'fontFamily' | 'fontSize' | 'color' | null
-  const [tick, setTick] = useState(0);
   const [fontSizeInput, setFontSizeInput] = useState("14");
+  const [selectedFontName, setSelectedFontName] = useState("Inter");
+  const [stickyTop, setStickyTop] = useState(136);
   const toolbarRef = useRef(null);
 
-  // Re-render reactively on any editor transaction or selection update
-  useEffect(() => {
-    if (!editor) return;
+  // 1. Reactive TipTap state via useEditorState (guarantees real-time re-renders in React 19)
+  const editorState = useEditorState({
+    editor,
+    selector: (ctx) => {
+      const ed = ctx.editor;
+      if (!ed) return null;
 
-    const handleUpdate = () => {
-      setTick((t) => t + 1);
+      // Checks marks on current selection (range or cursor) and storedMarks
+      const isMarkOn = (name) => {
+        if (ed.isActive(name)) return true;
+        if (ed.state?.storedMarks?.some((m) => m.type.name === name)) return true;
+        const { from, to, empty } = ed.state.selection;
+        if (!empty) {
+          let found = false;
+          ed.state.doc.nodesBetween(from, to, (node) => {
+            if (node.isText && node.marks.some((m) => m.type.name === name)) {
+              found = true;
+              return false;
+            }
+          });
+          if (found) return true;
+        }
+        return false;
+      };
+
+      const rawFontFamily = ed.getAttributes("textStyle")?.fontFamily;
+      const storedFontFamily = ed.state?.storedMarks?.find(
+        (m) => m.type.name === "textStyle" && m.attrs?.fontFamily
+      )?.attrs?.fontFamily;
+
+      return {
+        isBold: isMarkOn("bold"),
+        isItalic: isMarkOn("italic"),
+        isUnderline: isMarkOn("underline"),
+        isStrike: isMarkOn("strike"),
+        isSubscript: isMarkOn("subscript"),
+        isSuperscript: isMarkOn("superscript"),
+        isCode: isMarkOn("code"),
+        isBulletList: ed.isActive("bulletList"),
+        isOrderedList: ed.isActive("orderedList"),
+        isBlockquote: ed.isActive("blockquote"),
+        isCodeBlock: ed.isActive("codeBlock"),
+        alignLeft:
+          ed.isActive({ textAlign: "left" }) ||
+          (!ed.isActive({ textAlign: "center" }) &&
+            !ed.isActive({ textAlign: "right" }) &&
+            !ed.isActive({ textAlign: "justify" })),
+        alignCenter: ed.isActive({ textAlign: "center" }),
+        alignRight: ed.isActive({ textAlign: "right" }),
+        alignJustify: ed.isActive({ textAlign: "justify" }),
+        fontFamily: rawFontFamily || storedFontFamily || null,
+        fontSize: ed.getAttributes("textStyle")?.fontSize || null,
+        color: ed.getAttributes("textStyle")?.color || null,
+        h1: ed.isActive("heading", { level: 1 }),
+        h2: ed.isActive("heading", { level: 2 }),
+        h3: ed.isActive("heading", { level: 3 }),
+        h4: ed.isActive("heading", { level: 4 }),
+        h5: ed.isActive("heading", { level: 5 }),
+        h6: ed.isActive("heading", { level: 6 }),
+        isParagraph: ed.isActive("paragraph"),
+      };
+    },
+  });
+
+  // Dynamically calculate sticky top offset so toolbar always floats cleanly below the subheader
+  useEffect(() => {
+    const updateStickyTop = () => {
+      const headerEl = document.getElementById("document-context-header");
+      if (headerEl) {
+        // Sticky subheader sits at top: 64px (h-16). Its bottom edge when stuck is 64 + offsetHeight
+        const computedTop = 64 + headerEl.offsetHeight + 8;
+        setStickyTop(computedTop);
+      }
     };
 
-    editor.on("transaction", handleUpdate);
-    editor.on("selectionUpdate", handleUpdate);
-    editor.on("update", handleUpdate);
-    editor.on("focus", handleUpdate);
-    editor.on("blur", handleUpdate);
+    updateStickyTop();
+
+    const headerEl = document.getElementById("document-context-header");
+    let observer;
+    if (headerEl && window.ResizeObserver) {
+      observer = new ResizeObserver(updateStickyTop);
+      observer.observe(headerEl);
+    }
+    window.addEventListener("resize", updateStickyTop);
 
     return () => {
-      editor.off("transaction", handleUpdate);
-      editor.off("selectionUpdate", handleUpdate);
-      editor.off("update", handleUpdate);
-      editor.off("focus", handleUpdate);
-      editor.off("blur", handleUpdate);
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", updateStickyTop);
     };
-  }, [editor]);
+  }, []);
 
   // Keep font size input in sync with current cursor/selection
   useEffect(() => {
     if (!editor) return;
-    const raw = editor.getAttributes("textStyle")?.fontSize;
+    const raw = editorState?.fontSize;
     if (raw) {
       const parsed = parseInt(raw, 10);
       setFontSizeInput(isNaN(parsed) ? "14" : String(parsed));
     } else {
       setFontSizeInput("14");
     }
-  }, [editor, tick]);
+  }, [editor, editorState?.fontSize]);
+
+  // Keep font family name in sync with current cursor/selection
+  useEffect(() => {
+    if (!editor) return;
+    if (editorState?.fontFamily) {
+      setSelectedFontName(matchFontFamilyName(editorState.fontFamily));
+    } else {
+      setSelectedFontName("Inter");
+    }
+  }, [editor, editorState?.fontFamily]);
 
   // Close dropdown menus when clicking outside the toolbar
   useEffect(() => {
@@ -137,55 +406,70 @@ export default function Toolbar({ editor }) {
 
   // Active heading/block label
   const currentHeadingType = () => {
-    if (editor.isActive("heading", { level: 1 })) return "Heading 1";
-    if (editor.isActive("heading", { level: 2 })) return "Heading 2";
-    if (editor.isActive("heading", { level: 3 })) return "Heading 3";
-    if (editor.isActive("heading", { level: 4 })) return "Heading 4";
-    if (editor.isActive("heading", { level: 5 })) return "Heading 5";
-    if (editor.isActive("heading", { level: 6 })) return "Heading 6";
-    if (editor.isActive("codeBlock")) return "Code Block";
-    if (editor.isActive("blockquote")) return "Quote";
+    if (editorState?.h1) return "Heading 1";
+    if (editorState?.h2) return "Heading 2";
+    if (editorState?.h3) return "Heading 3";
+    if (editorState?.h4) return "Heading 4";
+    if (editorState?.h5) return "Heading 5";
+    if (editorState?.h6) return "Heading 6";
+    if (editorState?.isCodeBlock) return "Code Block";
+    if (editorState?.isBlockquote) return "Quote";
     return "Normal text";
   };
 
   const isAnyHeadingActive = () => {
-    return [1, 2, 3, 4, 5, 6].some((l) => editor.isActive("heading", { level: l }));
+    return Boolean(
+      editorState?.h1 ||
+        editorState?.h2 ||
+        editorState?.h3 ||
+        editorState?.h4 ||
+        editorState?.h5 ||
+        editorState?.h6
+    );
   };
 
   // Font family helper
   const getCurrentFontFamilyName = () => {
-    const raw = editor.getAttributes("textStyle")?.fontFamily;
-    if (!raw) return "Font";
-    const found = FONT_FAMILIES.find((f) =>
-      raw.toLowerCase().includes(f.shortName.toLowerCase())
-    );
-    return found ? found.shortName : "Font";
+    if (editorState?.fontFamily) {
+      return matchFontFamilyName(editorState.fontFamily);
+    }
+    return selectedFontName || "Inter";
+  };
+
+  const handleSelectFontFamily = (font) => {
+    setSelectedFontName(font.shortName);
+    editor.chain().focus().setFontFamily(font.value).run();
+    setActiveMenu(null);
+  };
+
+  const handleResetFontFamily = () => {
+    setSelectedFontName("Inter");
+    editor.chain().focus().unsetFontFamily().run();
+    setActiveMenu(null);
   };
 
   // Font size helpers
   const getCurrentFontSizeNum = () => {
-    const raw = editor.getAttributes("textStyle")?.fontSize;
+    const raw = editorState?.fontSize;
     if (!raw) return 14;
     const parsed = parseInt(raw, 10);
     return isNaN(parsed) ? 14 : parsed;
   };
 
-  // Constant increment: exactly +1
+  // Constant increment: exactly +1px
   const handleIncreaseFontSize = () => {
     const current = getCurrentFontSizeNum();
     const next = Math.min(200, current + 1);
     setFontSizeInput(String(next));
     editor.chain().focus().setFontSize(`${next}px`).run();
-    setTick((t) => t + 1);
   };
 
-  // Constant decrement: exactly -1
+  // Constant decrement: exactly -1px
   const handleDecreaseFontSize = () => {
     const current = getCurrentFontSizeNum();
     const prev = Math.max(6, current - 1);
     setFontSizeInput(String(prev));
     editor.chain().focus().setFontSize(`${prev}px`).run();
-    setTick((t) => t + 1);
   };
 
   // Apply typed font size from input
@@ -198,14 +482,10 @@ export default function Toolbar({ editor }) {
     const clamped = Math.min(200, Math.max(6, num));
     setFontSizeInput(String(clamped));
     editor.chain().focus().setFontSize(`${clamped}px`).run();
-    setTick((t) => t + 1);
   };
 
   // Text color helper
-  const currentColor = () => {
-    const attrs = editor.getAttributes("textStyle");
-    return attrs?.color || null;
-  };
+  const currentColor = () => editorState?.color || null;
 
   // Alignment helper
   const isAlignActive = (align) => {
@@ -256,7 +536,7 @@ export default function Toolbar({ editor }) {
       label: "Normal text",
       shortcut: "Ctrl+Alt+0",
       action: () => editor.chain().focus().setParagraph().run(),
-      isActive: () => editor.isActive("paragraph") && !isAnyHeadingActive(),
+      isActive: () => Boolean(editorState?.isParagraph && !isAnyHeadingActive()),
       style: "text-sm font-normal",
     },
     {
@@ -264,7 +544,7 @@ export default function Toolbar({ editor }) {
       label: "Heading 1",
       shortcut: "Ctrl+Alt+1",
       action: () => editor.chain().focus().setHeading({ level: 1 }).run(),
-      isActive: () => editor.isActive("heading", { level: 1 }),
+      isActive: () => Boolean(editorState?.h1),
       style: "text-lg font-bold",
     },
     {
@@ -272,7 +552,7 @@ export default function Toolbar({ editor }) {
       label: "Heading 2",
       shortcut: "Ctrl+Alt+2",
       action: () => editor.chain().focus().setHeading({ level: 2 }).run(),
-      isActive: () => editor.isActive("heading", { level: 2 }),
+      isActive: () => Boolean(editorState?.h2),
       style: "text-base font-bold",
     },
     {
@@ -280,7 +560,7 @@ export default function Toolbar({ editor }) {
       label: "Heading 3",
       shortcut: "Ctrl+Alt+3",
       action: () => editor.chain().focus().setHeading({ level: 3 }).run(),
-      isActive: () => editor.isActive("heading", { level: 3 }),
+      isActive: () => Boolean(editorState?.h3),
       style: "text-sm font-semibold",
     },
     {
@@ -288,7 +568,7 @@ export default function Toolbar({ editor }) {
       label: "Heading 4",
       shortcut: "Ctrl+Alt+4",
       action: () => editor.chain().focus().setHeading({ level: 4 }).run(),
-      isActive: () => editor.isActive("heading", { level: 4 }),
+      isActive: () => Boolean(editorState?.h4),
       style: "text-xs font-semibold",
     },
     {
@@ -296,7 +576,7 @@ export default function Toolbar({ editor }) {
       label: "Heading 5",
       shortcut: "Ctrl+Alt+5",
       action: () => editor.chain().focus().setHeading({ level: 5 }).run(),
-      isActive: () => editor.isActive("heading", { level: 5 }),
+      isActive: () => Boolean(editorState?.h5),
       style: "text-xs font-medium",
     },
     {
@@ -304,7 +584,7 @@ export default function Toolbar({ editor }) {
       label: "Heading 6",
       shortcut: "Ctrl+Alt+6",
       action: () => editor.chain().focus().setHeading({ level: 6 }).run(),
-      isActive: () => editor.isActive("heading", { level: 6 }),
+      isActive: () => Boolean(editorState?.h6),
       style: "text-xs uppercase font-medium tracking-wider",
     },
   ];
@@ -312,7 +592,8 @@ export default function Toolbar({ editor }) {
   return (
     <div
       ref={toolbarRef}
-      className="sticky top-20 z-40 w-full flex justify-center px-2 sm:px-4 py-2 pointer-events-none"
+      style={{ top: `${stickyTop}px` }}
+      className="sticky z-20 w-full flex justify-center px-2 sm:px-4 py-2 pointer-events-none transition-all duration-150"
     >
       <div className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-surface-container-lowest/95 backdrop-blur-md border border-[#E8E8E5] px-2.5 sm:px-3.5 py-1.5 rounded-2xl shadow-xl max-w-full overflow-visible select-none">
         {/* 1. Paragraph / Heading Dropdown */}
@@ -347,7 +628,6 @@ export default function Toolbar({ editor }) {
                     onClick={() => {
                       opt.action();
                       setActiveMenu(null);
-                      setTick((t) => t + 1);
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-surface-container transition-colors flex items-center justify-between cursor-pointer ${
                       active
@@ -378,7 +658,7 @@ export default function Toolbar({ editor }) {
             onClick={() =>
               setActiveMenu(activeMenu === "fontFamily" ? null : "fontFamily")
             }
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface-container/60 hover:bg-surface-container text-on-surface border border-[#E8E8E5] transition-colors cursor-pointer whitespace-nowrap text-xs font-medium max-w-[120px]"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface-container/60 hover:bg-surface-container text-on-surface border border-[#E8E8E5] transition-colors cursor-pointer whitespace-nowrap text-xs font-medium min-w-[90px] max-w-[150px]"
             title="Font Family"
           >
             <span className="truncate font-semibold">{getCurrentFontFamilyName()}</span>
@@ -388,33 +668,42 @@ export default function Toolbar({ editor }) {
           </button>
 
           {activeMenu === "fontFamily" && (
-            <div className="absolute left-0 top-full mt-2 w-60 bg-surface-bright border border-[#E8E8E5] rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-80 overflow-y-auto space-y-0.5">
+            <div className="absolute left-0 top-full mt-2 w-64 bg-surface-bright border border-[#E8E8E5] rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 max-h-80 overflow-y-auto space-y-0.5">
+              <div className="px-2.5 py-1 text-[10px] font-semibold text-outline uppercase tracking-wider select-none">
+                Font Families
+              </div>
               {FONT_FAMILIES.map((font, idx) => {
+                const currentFont = getCurrentFontFamilyName();
                 const active =
-                  editor.getAttributes("textStyle")?.fontFamily === font.value;
+                  currentFont.toLowerCase() === font.shortName.toLowerCase();
+                const showCategoryHeader =
+                  idx === 0 || FONT_FAMILIES[idx - 1].category !== font.category;
+
                 return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      editor.chain().focus().setFontFamily(font.value).run();
-                      setActiveMenu(null);
-                      setTick((t) => t + 1);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-surface-container transition-colors flex items-center justify-between cursor-pointer ${
-                      active
-                        ? "text-primary font-bold bg-primary/10"
-                        : "text-on-surface"
-                    }`}
-                  >
-                    <span style={{ fontFamily: font.value }}>{font.label}</span>
-                    {active && (
-                      <span className="material-symbols-outlined text-[16px] text-primary">
-                        check
-                      </span>
+                  <div key={idx}>
+                    {showCategoryHeader && (
+                      <div className="px-2.5 pt-2 pb-0.5 text-[10px] font-bold text-outline/80 uppercase tracking-wider select-none border-t border-[#E8E8E5] mt-1.5 first:border-t-0 first:mt-0">
+                        {font.category}
+                      </div>
                     )}
-                  </button>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSelectFontFamily(font)}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-surface-container transition-colors flex items-center justify-between cursor-pointer ${
+                        active
+                          ? "text-primary font-bold bg-primary/10"
+                          : "text-on-surface"
+                      }`}
+                    >
+                      <span style={{ fontFamily: font.value }}>{font.label}</span>
+                      {active && (
+                        <span className="material-symbols-outlined text-[16px] text-primary">
+                          check
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 );
               })}
 
@@ -423,11 +712,7 @@ export default function Toolbar({ editor }) {
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  editor.chain().focus().unsetFontFamily().run();
-                  setActiveMenu(null);
-                  setTick((t) => t + 1);
-                }}
+                onClick={handleResetFontFamily}
                 className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
               >
                 Reset default font
@@ -518,7 +803,6 @@ export default function Toolbar({ editor }) {
                         setFontSizeInput(String(num));
                         editor.chain().focus().setFontSize(size.value).run();
                         setActiveMenu(null);
-                        setTick((t) => t + 1);
                       }}
                       className={`w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-surface-container transition-colors flex items-center justify-between cursor-pointer ${
                         active
@@ -545,7 +829,6 @@ export default function Toolbar({ editor }) {
                     setFontSizeInput("14");
                     editor.chain().focus().unsetFontSize().run();
                     setActiveMenu(null);
-                    setTick((t) => t + 1);
                   }}
                   className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
                 >
@@ -618,7 +901,6 @@ export default function Toolbar({ editor }) {
                           editor.chain().focus().unsetColor().run();
                         }
                         setActiveMenu(null);
-                        setTick((t) => t + 1);
                       }}
                       className={`w-7 h-7 rounded-lg border flex items-center justify-center hover:scale-110 transition-transform cursor-pointer relative ${
                         isSelected
@@ -650,7 +932,6 @@ export default function Toolbar({ editor }) {
                   value={currentColor() || "#000000"}
                   onChange={(e) => {
                     editor.chain().focus().setColor(e.target.value).run();
-                    setTick((t) => t + 1);
                   }}
                   className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent"
                 />
@@ -669,9 +950,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleBold().run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(editor.isActive("bold"))}
+            className={getBtnClass(editorState?.isBold)}
             title="Bold (Ctrl+B)"
           >
             B
@@ -683,9 +963,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleItalic().run();
-              setTick((t) => t + 1);
             }}
-            className={`${getBtnClass(editor.isActive("italic"))} italic`}
+            className={`${getBtnClass(editorState?.isItalic)} italic`}
             title="Italic (Ctrl+I)"
           >
             I
@@ -697,9 +976,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleUnderline().run();
-              setTick((t) => t + 1);
             }}
-            className={`${getBtnClass(editor.isActive("underline"))} underline underline-offset-2`}
+            className={`${getBtnClass(editorState?.isUnderline)} underline underline-offset-2`}
             title="Underline (Ctrl+U)"
           >
             U
@@ -711,9 +989,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleStrike().run();
-              setTick((t) => t + 1);
             }}
-            className={`${getBtnClass(editor.isActive("strike"))} line-through`}
+            className={`${getBtnClass(editorState?.isStrike)} line-through`}
             title="Strikethrough"
           >
             S
@@ -725,9 +1002,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleSubscript().run();
-              setTick((t) => t + 1);
             }}
-            className={`${getBtnClass(editor.isActive("subscript"))} font-mono`}
+            className={`${getBtnClass(editorState?.isSubscript)} font-mono`}
             title="Subscript (X₂)"
           >
             <span className="flex items-baseline">
@@ -742,9 +1018,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleSuperscript().run();
-              setTick((t) => t + 1);
             }}
-            className={`${getBtnClass(editor.isActive("superscript"))} font-mono`}
+            className={`${getBtnClass(editorState?.isSuperscript)} font-mono`}
             title="Superscript (X²)"
           >
             <span className="flex items-baseline">
@@ -759,9 +1034,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleCode().run();
-              setTick((t) => t + 1);
             }}
-            className={`${getBtnClass(editor.isActive("code"))} font-mono text-[11px]`}
+            className={`${getBtnClass(editorState?.isCode)} font-mono text-[11px]`}
             title="Inline Code"
           >
             &lt;/&gt;
@@ -777,9 +1051,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().setTextAlign("left").run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(isAlignActive("left"))}
+            className={getBtnClass(editorState?.alignLeft)}
             title="Align Left"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -791,9 +1064,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().setTextAlign("center").run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(isAlignActive("center"))}
+            className={getBtnClass(editorState?.alignCenter)}
             title="Align Center"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -805,9 +1077,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().setTextAlign("right").run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(isAlignActive("right"))}
+            className={getBtnClass(editorState?.alignRight)}
             title="Align Right"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -819,9 +1090,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().setTextAlign("justify").run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(isAlignActive("justify"))}
+            className={getBtnClass(editorState?.alignJustify)}
             title="Align Justify"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -839,9 +1109,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleBulletList().run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(editor.isActive("bulletList"))}
+            className={getBtnClass(editorState?.isBulletList)}
             title="Bullet List"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -853,9 +1122,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleOrderedList().run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(editor.isActive("orderedList"))}
+            className={getBtnClass(editorState?.isOrderedList)}
             title="Numbered List"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -867,9 +1135,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleBlockquote().run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(editor.isActive("blockquote"))}
+            className={getBtnClass(editorState?.isBlockquote)}
             title="Quote Block"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -881,9 +1148,8 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().toggleCodeBlock().run();
-              setTick((t) => t + 1);
             }}
-            className={getBtnClass(editor.isActive("codeBlock"))}
+            className={getBtnClass(editorState?.isCodeBlock)}
             title="Code Block"
           >
             <span className="material-symbols-outlined text-[17px]">
@@ -895,7 +1161,6 @@ export default function Toolbar({ editor }) {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               editor.chain().focus().setHorizontalRule().run();
-              setTick((t) => t + 1);
             }}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer select-none active:scale-95"
             title="Horizontal Divider"

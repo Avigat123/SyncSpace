@@ -94,7 +94,10 @@ export default function Header() {
         <div className="flex items-center gap-2 sm:gap-space-md">
           {/* Sync status badge */}
           <div className="hidden sm:flex items-center gap-space-xs bg-surface-container px-space-sm py-1 rounded-full border border-[#E8E8E5]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
+            </span>
             <span className="font-label-sm text-label-sm text-on-surface-variant">
               All changes synced
             </span>

@@ -18,22 +18,22 @@ export const Subscript = Mark.create({
     return {
       toggleSubscript:
         () =>
-        ({ commands, editor }) => {
-          if (editor.isActive("superscript")) {
-            commands.unsetMark("superscript");
-          }
-          return commands.toggleMark("subscript");
-        },
+          ({ commands, editor }) => {
+            if (editor.isActive("superscript")) {
+              commands.unsetMark("superscript");
+            }
+            return commands.toggleMark("subscript");
+          },
       setSubscript:
         () =>
-        ({ commands }) => {
-          commands.unsetMark("superscript");
-          return commands.setMark("subscript");
-        },
+          ({ commands }) => {
+            commands.unsetMark("superscript");
+            return commands.setMark("subscript");
+          },
       unsetSubscript:
         () =>
-        ({ commands }) =>
-          commands.unsetMark("subscript"),
+          ({ commands }) =>
+            commands.unsetMark("subscript"),
     };
   },
 });
@@ -56,22 +56,22 @@ export const Superscript = Mark.create({
     return {
       toggleSuperscript:
         () =>
-        ({ commands, editor }) => {
-          if (editor.isActive("subscript")) {
-            commands.unsetMark("subscript");
-          }
-          return commands.toggleMark("superscript");
-        },
+          ({ commands, editor }) => {
+            if (editor.isActive("subscript")) {
+              commands.unsetMark("subscript");
+            }
+            return commands.toggleMark("superscript");
+          },
       setSuperscript:
         () =>
-        ({ commands }) => {
-          commands.unsetMark("subscript");
-          return commands.setMark("superscript");
-        },
+          ({ commands }) => {
+            commands.unsetMark("subscript");
+            return commands.setMark("superscript");
+          },
       unsetSuperscript:
         () =>
-        ({ commands }) =>
-          commands.unsetMark("superscript"),
+          ({ commands }) =>
+            commands.unsetMark("superscript"),
     };
   },
 });
@@ -136,46 +136,73 @@ export const TextStyle = Mark.create({
     return {
       setColor:
         (color) =>
-        ({ commands }) => {
-          return commands.setMark("textStyle", { color });
-        },
+          ({ commands }) => {
+            return commands.setMark("textStyle", { color });
+          },
       unsetColor:
         () =>
-        ({ commands, editor }) => {
-          const currentAttrs = editor.getAttributes("textStyle") || {};
-          if (!currentAttrs.fontSize && !currentAttrs.fontFamily) {
-            return commands.unsetMark("textStyle");
-          }
-          return commands.resetAttributes("textStyle", "color");
-        },
+          ({ commands, editor, tr, state }) => {
+            const { empty } = tr.selection;
+            const currentAttrs = editor.getAttributes("textStyle") || {};
+            if (!currentAttrs.fontSize && !currentAttrs.fontFamily) {
+              return commands.unsetMark("textStyle");
+            }
+            if (empty) {
+              const markType = state.schema.marks.textStyle;
+              if (markType) {
+                const newAttrs = { ...currentAttrs, color: null };
+                tr.addStoredMark(markType.create(newAttrs));
+                return true;
+              }
+            }
+            return commands.setMark("textStyle", { color: null });
+          },
       setFontSize:
         (fontSize) =>
-        ({ commands }) => {
-          return commands.setMark("textStyle", { fontSize });
-        },
+          ({ commands }) => {
+            return commands.setMark("textStyle", { fontSize });
+          },
       unsetFontSize:
         () =>
-        ({ commands, editor }) => {
-          const currentAttrs = editor.getAttributes("textStyle") || {};
-          if (!currentAttrs.color && !currentAttrs.fontFamily) {
-            return commands.unsetMark("textStyle");
-          }
-          return commands.resetAttributes("textStyle", "fontSize");
-        },
+          ({ commands, editor, tr, state }) => {
+            const { empty } = tr.selection;
+            const currentAttrs = editor.getAttributes("textStyle") || {};
+            if (!currentAttrs.color && !currentAttrs.fontFamily) {
+              return commands.unsetMark("textStyle");
+            }
+            if (empty) {
+              const markType = state.schema.marks.textStyle;
+              if (markType) {
+                const newAttrs = { ...currentAttrs, fontSize: null };
+                tr.addStoredMark(markType.create(newAttrs));
+                return true;
+              }
+            }
+            return commands.setMark("textStyle", { fontSize: null });
+          },
       setFontFamily:
         (fontFamily) =>
-        ({ commands }) => {
-          return commands.setMark("textStyle", { fontFamily });
-        },
+          ({ commands }) => {
+            return commands.setMark("textStyle", { fontFamily });
+          },
       unsetFontFamily:
         () =>
-        ({ commands, editor }) => {
-          const currentAttrs = editor.getAttributes("textStyle") || {};
-          if (!currentAttrs.color && !currentAttrs.fontSize) {
-            return commands.unsetMark("textStyle");
-          }
-          return commands.resetAttributes("textStyle", "fontFamily");
-        },
+          ({ commands, editor, tr, state }) => {
+            const { empty } = tr.selection;
+            const currentAttrs = editor.getAttributes("textStyle") || {};
+            if (!currentAttrs.color && !currentAttrs.fontSize) {
+              return commands.unsetMark("textStyle");
+            }
+            if (empty) {
+              const markType = state.schema.marks.textStyle;
+              if (markType) {
+                const newAttrs = { ...currentAttrs, fontFamily: null };
+                tr.addStoredMark(markType.create(newAttrs));
+                return true;
+              }
+            }
+            return commands.setMark("textStyle", { fontFamily: null });
+          },
     };
   },
 });
@@ -222,23 +249,23 @@ export const TextAlign = Extension.create({
     return {
       setTextAlign:
         (alignment) =>
-        ({ commands }) => {
-          if (!this.options.alignments.includes(alignment)) {
-            return false;
-          }
-          return this.options.types
-            .map((type) =>
-              commands.updateAttributes(type, { textAlign: alignment })
-            )
-            .some((res) => res);
-        },
+          ({ commands }) => {
+            if (!this.options.alignments.includes(alignment)) {
+              return false;
+            }
+            return this.options.types
+              .map((type) =>
+                commands.updateAttributes(type, { textAlign: alignment })
+              )
+              .some((res) => res);
+          },
       unsetTextAlign:
         () =>
-        ({ commands }) => {
-          return this.options.types
-            .map((type) => commands.resetAttributes(type, "textAlign"))
-            .some((res) => res);
-        },
+          ({ commands }) => {
+            return this.options.types
+              .map((type) => commands.resetAttributes(type, "textAlign"))
+              .some((res) => res);
+          },
     };
   },
 });

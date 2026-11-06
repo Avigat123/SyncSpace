@@ -256,7 +256,10 @@ function DocumentPage() {
   return (
     <div className="w-full flex flex-col relative min-h-screen">
       {/* Internal Editor Context Header */}
-      <section className="sticky top-16 z-30 w-full bg-surface-bright/95 backdrop-blur-md border-b border-[#E8E8E5] px-4 sm:px-space-xl py-space-sm flex flex-col md:flex-row items-center justify-between gap-space-sm">
+      <section
+        id="document-context-header"
+        className="sticky top-16 z-30 w-full bg-surface-bright/95 backdrop-blur-md border-b border-[#E8E8E5] px-4 sm:px-space-xl py-space-sm flex flex-col md:flex-row items-center justify-between gap-space-sm"
+      >
         {/* Left: Context & Document Title */}
         <div className="flex items-center gap-space-md min-w-0 w-full md:w-auto">
           <Link
@@ -312,19 +315,8 @@ function DocumentPage() {
           </div>
         </div>
 
-        {/* Center-Right: Sync status, Active Avatars & Action Triggers */}
+        {/* Center-Right: Active Avatars & Action Triggers */}
         <div className="flex items-center gap-2 sm:gap-space-md w-full md:w-auto justify-end flex-wrap">
-          {/* Real-time Yjs Sync Indicator */}
-          <div className="hidden lg:flex items-center gap-space-xs px-space-md py-1 rounded-full bg-surface-container-low text-on-surface-variant border border-[#E8E8E5]/60">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
-            </span>
-            <span className="font-label-sm text-label-sm">
-              Saved via Yjs Socket
-            </span>
-          </div>
-
           {/* Collaborator Presence Indicators */}
           {awareness && <PresenceIndicator awareness={awareness} />}
 
