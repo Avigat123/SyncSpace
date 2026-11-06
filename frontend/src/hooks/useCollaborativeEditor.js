@@ -124,6 +124,7 @@ export default function useCollaborativeEditor(documentId, role) {
       ),
       autofocus: "end",
       editable: role !== "viewer",
+      shouldRerenderOnTransaction: true,
     },
     [
       ydoc,

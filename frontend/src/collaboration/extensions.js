@@ -1,6 +1,12 @@
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
+import {
+  Subscript,
+  Superscript,
+  TextStyle,
+  TextAlign,
+} from "./formattingExtensions";
 
 const CURSOR_COLORS = [
   "#6366f1", // Indigo
@@ -31,7 +37,19 @@ export function createCollaborativeExtensions(
   const userColor = getUserColor(user?._id);
 
   return [
-    StarterKit.configure({ undoRedo: false }),
+    StarterKit.configure({
+      undoRedo: false,
+      heading: {
+        levels: [1, 2, 3, 4, 5, 6],
+      },
+    }),
+
+    Subscript,
+    Superscript,
+    TextStyle,
+    TextAlign.configure({
+      types: ["heading", "paragraph"],
+    }),
 
     Collaboration.configure({ document: ydoc }),
 
@@ -45,4 +63,4 @@ export function createCollaborativeExtensions(
       },
     }),
   ];
-}
+}
