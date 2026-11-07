@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getUserColor } from "../../collaboration/extensions";
+import { getInitials } from "../../utils/helpers";
 
 export default function PresenceIndicator({ awareness }) {
   const [users, setUsers] = useState([]);
@@ -37,16 +38,6 @@ export default function PresenceIndicator({ awareness }) {
 
   const visibleUsers = users.slice(0, 5);
   const remaining = users.length - visibleUsers.length;
-
-  const getInitials = (name) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  };
 
   return (
     <div className="flex items-center gap-space-sm">

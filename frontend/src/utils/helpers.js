@@ -1,11 +1,14 @@
 export function getInitials(name) {
   if (!name) return "U";
-  return name
-    .split(" ")
+  return String(name)
+    .replace(/\(You\)/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "U";
 }
 
 export function formatRelativeTime(dateString) {
@@ -28,4 +31,3 @@ export function formatRelativeTime(dateString) {
     day: "numeric",
   });
 }
-

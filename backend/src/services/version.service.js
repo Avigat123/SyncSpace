@@ -1,9 +1,8 @@
-
 import * as Y from "yjs";
 import Version from "../models/version.model.js";
 import Document from "../models/document.model.js";
 
-export async function createVersion(documentId, ydoc, editedBy) {
+export async function createVersion(documentId, ydoc, editedBy, customTitle) {
     const document = await Document.findById(documentId);
 
     if (!document) {
@@ -11,11 +10,24 @@ export async function createVersion(documentId, ydoc, editedBy) {
     }
 
     const yjsState = Y.encodeStateAsUpdate(ydoc);
+    const versionTitle = (customTitle && typeof customTitle === "string" && customTitle.trim())
+        ? customTitle.trim()
+        : document.title;
+
+    let textContent = "";
+    try {
+        const frag = ydoc.getXmlFragment("default");
+        if (frag && frag.length > 0) {
+            textContent = frag.toString();
+        }
+    } catch (error) {
+        console.warn("[createVersion] Could not serialize XmlFragment:", error);
+    }
 
     console.log("[createVersion] payload:", {
         document: document._id,
-        title: document.title,
-        content: document.content || "",
+        title: versionTitle,
+        content: textContent || document.content || "",
         editedBy,
         hasYjsState: Boolean(yjsState),
     });
@@ -25,8 +37,8 @@ export async function createVersion(documentId, ydoc, editedBy) {
     try {
         version = await Version.create({
             document: document._id,
-            title: document.title,
-            content: document.content || "",
+            title: versionTitle,
+            content: textContent || document.content || "",
             editedBy,
             yjsState: Buffer.from(yjsState),
         });

@@ -1,44 +1,210 @@
-import { useEffect, useState } from "react";
-import { getDocumentVersions, restoreVersion } from "../../api/document";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Collaboration from "@tiptap/extension-collaboration";
+import * as Y from "yjs";
+import {
+  Subscript,
+  Superscript,
+  TextStyle,
+  TextAlign,
+} from "../../collaboration/formattingExtensions";
+import {
+  getDocumentVersions,
+  restoreVersion,
+  createDocumentVersion,
+} from "../../api/document";
+import { getInitials } from "../../utils/helpers";
+
+function VersionPreviewContent({ version }) {
+  const { ydoc, hasYjs } = useMemo(() => {
+    const doc = new Y.Doc();
+    let has = false;
+
+    if (version?.yjsState) {
+      let bytes = null;
+      if (version.yjsState instanceof Uint8Array) {
+        bytes = version.yjsState;
+      } else if (
+        version.yjsState?.data &&
+        Array.isArray(version.yjsState.data)
+      ) {
+        bytes = new Uint8Array(version.yjsState.data);
+      } else if (Array.isArray(version.yjsState)) {
+        bytes = new Uint8Array(version.yjsState);
+      }
+
+      if (bytes && bytes.length > 0) {
+        try {
+          Y.applyUpdate(doc, bytes);
+          has = true;
+        } catch (e) {
+          console.error("Failed to decode Yjs state for preview:", e);
+        }
+      }
+    }
+
+    return { ydoc: doc, hasYjs: has };
+  }, [version?.yjsState]);
+
+  useEffect(() => {
+    return () => {
+      ydoc.destroy();
+    };
+  }, [ydoc]);
+
+  const extensions = useMemo(() => {
+    return [
+      StarterKit.configure({
+        undoRedo: false,
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+      }),
+      Subscript,
+      Superscript,
+      TextStyle,
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
+      ...(hasYjs ? [Collaboration.configure({ document: ydoc })] : []),
+    ];
+  }, [hasYjs, ydoc]);
+
+  const editor = useEditor(
+    {
+      editable: false,
+      extensions,
+      content: !hasYjs && version?.content ? version.content : undefined,
+    },
+    [version?._id, hasYjs, ydoc]
+  );
+
+  if (!hasYjs && !version?.content) {
+    return (
+      <div className="py-16 flex flex-col items-center justify-center text-center p-8 text-on-surface-variant font-body-sm italic">
+        <span className="material-symbols-outlined text-[36px] text-outline mb-2">
+          hourglass_empty
+        </span>
+        <p>Binary CRDT snapshot captured at this revision point.</p>
+        <p className="text-xs text-outline mt-1">
+          No readable preview content available for this historical snapshot.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="prose prose-slate max-w-none focus:outline-none min-h-[300px] text-on-surface font-body-lg text-body-lg leading-relaxed">
+      <EditorContent editor={editor} />
+    </div>
+  );
+}
 
 export default function VersionHistory({
   documentId,
   isOpen,
   onClose,
   onVersionRestored,
+  canEdit = true,
 }) {
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [restoring, setRestoring] = useState(false);
-  const [restoreMessage, setRestoreMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusType, setStatusType] = useState("info"); // 'info' | 'success' | 'error'
   const [namedOnly, setNamedOnly] = useState(false);
+
+  // Modal state for manual version creation
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [versionNameInput, setVersionNameInput] = useState("");
+  const [creatingVersion, setCreatingVersion] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  const fetchVersions = useCallback(async () => {
+    if (!documentId) return;
+    try {
+      const response = await getDocumentVersions(documentId);
+      const list = response.versions || [];
+      setVersions(list);
+      if (list.length > 0) {
+        setSelectedVersion(list[0]);
+      }
+    } catch (err) {
+      setError(err.message || "Failed to load version history");
+    } finally {
+      setLoading(false);
+    }
+  }, [documentId]);
 
   useEffect(() => {
     if (!isOpen || !documentId) return;
+    let isMounted = true;
 
-    const fetchVersions = async () => {
-      setLoading(true);
-      setError("");
+    const loadVersions = async () => {
       try {
         const response = await getDocumentVersions(documentId);
-        const list = response.versions || [];
-        setVersions(list);
-        if (list.length > 0) {
-          setSelectedVersion(list[0]);
+        if (isMounted) {
+          const list = response.versions || [];
+          setVersions(list);
+          if (list.length > 0) {
+            setSelectedVersion(list[0]);
+          }
         }
       } catch (err) {
-        setError(err.message || "Failed to load version history");
+        if (isMounted) {
+          setError(err.message || "Failed to load version history");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchVersions();
+    loadVersions();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, documentId]);
 
   if (!isOpen) return null;
+
+  const handleCreateVersion = async (e) => {
+    e?.preventDefault();
+    if (creatingVersion) return;
+
+    setCreatingVersion(true);
+    setCreateError("");
+
+    try {
+      const title = versionNameInput.trim() || undefined;
+      const response = await createDocumentVersion(documentId, title);
+
+      setStatusType("success");
+      setStatusMessage("Snapshot saved successfully!");
+      setShowCreateModal(false);
+      setVersionNameInput("");
+
+      // Refresh version list and auto-select newly created snapshot
+      await fetchVersions();
+
+      if (response?.version) {
+        setSelectedVersion(response.version);
+      }
+
+      setTimeout(() => {
+        setStatusMessage("");
+      }, 3500);
+    } catch (err) {
+      setCreateError(err.message || "Failed to create version snapshot");
+    } finally {
+      setCreatingVersion(false);
+    }
+  };
 
   const handleRestore = async (version) => {
     if (!version || restoring) return;
@@ -51,11 +217,12 @@ export default function VersionHistory({
     if (!confirmed) return;
 
     setRestoring(true);
-    setRestoreMessage("");
+    setStatusMessage("");
 
     try {
       await restoreVersion(documentId, version._id);
-      setRestoreMessage("Version restored successfully!");
+      setStatusType("success");
+      setStatusMessage("Version restored successfully!");
       if (onVersionRestored) {
         await onVersionRestored();
       }
@@ -63,20 +230,11 @@ export default function VersionHistory({
         onClose();
       }, 1200);
     } catch (err) {
-      setRestoreMessage(err.message || "Failed to restore version");
+      setStatusType("error");
+      setStatusMessage(err.message || "Failed to restore version");
     } finally {
       setRestoring(false);
     }
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
   };
 
   const formatTimestamp = (dateString) => {
@@ -100,7 +258,9 @@ export default function VersionHistory({
       <div className="w-full bg-surface-container-high px-4 sm:px-space-lg py-3 shadow-xs flex flex-wrap items-center justify-between gap-space-md z-30 border-b border-[#E8E8E5]">
         <div className="flex items-center gap-space-md min-w-0">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary flex-shrink-0">
-            <span className="material-symbols-outlined text-[20px]">history</span>
+            <span className="material-symbols-outlined text-[20px]">
+              history
+            </span>
           </div>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-space-sm flex-wrap">
@@ -129,13 +289,39 @@ export default function VersionHistory({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-space-sm flex-shrink-0">
-          {restoreMessage && (
-            <span className="font-label-md text-label-md text-tertiary font-medium">
-              {restoreMessage}
+          {statusMessage && (
+            <span
+              className={`font-label-md text-label-md font-medium ${
+                statusType === "error"
+                  ? "text-error"
+                  : statusType === "success"
+                  ? "text-tertiary"
+                  : "text-on-surface-variant"
+              }`}
+            >
+              {statusMessage}
             </span>
           )}
 
-          {selectedVersion && (
+          {/* Manual Snapshot Save Button */}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setCreateError("");
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-space-xs bg-surface-container-lowest hover:bg-surface text-on-surface px-space-md py-1.5 rounded-lg font-label-md text-label-md shadow-xs border border-[#E8E8E5] transition-colors cursor-pointer"
+              title="Save a named revision checkpoint"
+            >
+              <span className="material-symbols-outlined text-[18px] text-primary">
+                bookmark_add
+              </span>
+              <span>Save Version</span>
+            </button>
+          )}
+
+          {selectedVersion && canEdit && (
             <button
               type="button"
               onClick={() => handleRestore(selectedVersion)}
@@ -196,19 +382,12 @@ export default function VersionHistory({
                   </p>
                 </div>
 
-                {/* Content preview */}
-                <div className="pt-space-md text-on-surface font-body-lg text-body-lg leading-relaxed whitespace-pre-wrap">
-                  {selectedVersion.content ? (
-                    typeof selectedVersion.content === "string" ? (
-                      selectedVersion.content
-                    ) : (
-                      JSON.stringify(selectedVersion.content, null, 2)
-                    )
-                  ) : (
-                    <p className="italic text-outline">
-                      Binary CRDT snapshot captured at this revision point.
-                    </p>
-                  )}
+                {/* Rich Read-Only TipTap CRDT Preview */}
+                <div className="pt-space-md">
+                  <VersionPreviewContent
+                    key={selectedVersion._id}
+                    version={selectedVersion}
+                  />
                 </div>
               </>
             ) : (
@@ -303,7 +482,9 @@ export default function VersionHistory({
                               : "bg-surface-container text-on-surface-variant"
                           }`}
                         >
-                          {index === 0 ? "Latest Snapshot" : `Version ${filteredVersions.length - index}`}
+                          {index === 0
+                            ? "Latest Snapshot"
+                            : `Version ${filteredVersions.length - index}`}
                         </span>
                       </div>
                       <span className="font-label-sm text-label-sm text-outline">
@@ -338,7 +519,95 @@ export default function VersionHistory({
           </div>
         </aside>
       </div>
+
+      {/* Create Version Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-surface-container-lowest border border-[#E8E8E5] rounded-2xl p-6 shadow-xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[22px]">
+                  bookmark_add
+                </span>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface">
+                  Save Version Snapshot
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setVersionNameInput("");
+                  setCreateError("");
+                }}
+                className="text-on-surface-variant hover:text-on-surface cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Create a revision checkpoint of the current document across all active collaborators.
+            </p>
+
+            <form onSubmit={handleCreateVersion} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="snapshot-name"
+                  className="block font-label-sm text-label-sm text-on-surface-variant mb-1.5"
+                >
+                  Snapshot Name (Optional)
+                </label>
+                <input
+                  id="snapshot-name"
+                  type="text"
+                  value={versionNameInput}
+                  onChange={(e) => setVersionNameInput(e.target.value)}
+                  placeholder="e.g. Design review v1, Sprint 4 notes"
+                  autoFocus
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-[#E8E8E5] bg-surface-container-lowest text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+
+              {createError && (
+                <div className="p-2.5 rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm">
+                  {createError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setVersionNameInput("");
+                    setCreateError("");
+                  }}
+                  className="px-4 py-2 rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-low transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingVersion}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg font-label-md text-label-md bg-primary hover:bg-primary/90 text-on-primary shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {creatingVersion ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      <span>Saving…</span>
+                    </>
+                  ) : (
+                    <span>Create Snapshot</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

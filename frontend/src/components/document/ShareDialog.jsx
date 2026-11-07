@@ -4,6 +4,7 @@ import {
   removeCollaborator,
   updateCollaboratorRole,
 } from "../../api/document";
+import { getInitials } from "../../utils/helpers";
 
 export default function ShareDialog({
   isOpen,
@@ -97,16 +98,6 @@ export default function ShareDialog({
     navigator.clipboard?.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
   };
 
   const owner = document.owner || {};

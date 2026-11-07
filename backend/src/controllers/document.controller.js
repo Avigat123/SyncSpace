@@ -249,14 +249,18 @@ export const restoreVersion = asyncHandler(async (req, res) => {
 
 export const createDocumentVersion = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    const { title } = req.body || {};
 
     const ydoc = await getYDoc(id);
 
     const version = await createVersion(
         id,
         ydoc,
-        req.user._id
+        req.user._id,
+        title
     );
+
+    await version.populate("editedBy", "name email");
 
     res.status(201).json({
         success: true,

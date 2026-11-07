@@ -2,12 +2,12 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
 import useTheme from "../../hooks/useTheme";
-import { logout } from "../../api/auth";
+import { getInitials } from "../../utils/helpers";
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, setUser } = useAuth();
+  const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -18,21 +18,10 @@ export default function Sidebar({ isOpen, onClose }) {
   const handleLogout = async () => {
     try {
       await logout();
-      setUser(null);
       navigate("/login", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
     }
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
   };
 
   const navLinks = [

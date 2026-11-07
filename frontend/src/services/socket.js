@@ -6,7 +6,7 @@ const SOCKET_URL =
 const socket = io(SOCKET_URL, {
     autoConnect: false,
     withCredentials: true,
-    transports: ["polling"],
+    transports: ["polling", "websocket"],
 });
 
 socket.on("connect", () => {

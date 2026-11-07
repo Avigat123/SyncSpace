@@ -34,6 +34,12 @@ export const shareDocument = (documentId, email, role) =>
 export const getDocumentVersions = (documentId) =>
     request(`/documents/${documentId}/history`);
 
+export const createDocumentVersion = (documentId, title) =>
+    request(`/documents/${documentId}/versions`, {
+        method: "POST",
+        body: JSON.stringify(title ? { title } : {}),
+    });
+
 export const restoreVersion = (documentId, versionId) =>
     request(`/documents/${documentId}/history/${versionId}/restore`, {
         method: "POST",

@@ -2,13 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useTheme from "../../hooks/useTheme";
 import useAuth from "../../hooks/useAuth";
-import { logout } from "../../api/auth";
+import { getInitials } from "../../utils/helpers";
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const { user, setUser } = useAuth();
+  const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef(null);
 
@@ -26,23 +26,10 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await logout();
-      setUser(null);
       navigate("/login", { replace: true });
     } catch (err) {
       console.error("Logout failed:", err);
     }
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "U";
-    return name
-      .replace(/\(You\)/g, "")
-      .trim()
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
   };
 
   const isEditor = location.pathname.startsWith("/document/");

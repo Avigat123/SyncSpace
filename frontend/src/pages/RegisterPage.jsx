@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { register } from "../api/auth.js";
+import useAuth from "../hooks/useAuth.js";
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const { register, user } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // If already authenticated, redirect directly to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +38,7 @@ function RegisterPage() {
 
     try {
       await register(name, email, password);
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {
@@ -151,8 +159,8 @@ function RegisterPage() {
             type="submit"
             disabled={loading || !isFormValid}
             className={`w-full py-3.5 px-6 rounded-full font-supercell-bd uppercase tracking-wider text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${!isFormValid || loading
-                ? "bg-[#c4dcfe] text-white cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md hover:shadow-lg cursor-pointer active:scale-[0.99]"
+              ? "bg-[#c4dcfe] text-white cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md hover:shadow-lg cursor-pointer active:scale-[0.99]"
               }`}
           >
             {loading ? (

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Editor from "../components/editor/Editor";
 import PresenceIndicator from "../components/collaboration/PresenceIndicator";
@@ -44,6 +44,8 @@ function DocumentPage() {
     ? "owner"
     : roleOverride ?? currentCollaborator?.role ?? "viewer";
 
+  const canEdit = isOwner || currentRole === "editor";
+
   // Handle version restored
   useEffect(() => {
     if (!documentId) return;
@@ -76,13 +78,12 @@ function DocumentPage() {
     };
   }, [documentId]);
 
-  // Sync initial title from document
-  useEffect(() => {
-    if (document) {
-      setTitle(document.title || "Untitled Document");
-      setOriginalTitle(document.title || "Untitled Document");
-    }
-  }, [document]);
+  const [prevDocId, setPrevDocId] = useState(null);
+  if (document && document._id !== prevDocId) {
+    setPrevDocId(document._id);
+    setTitle(document.title || "Untitled Document");
+    setOriginalTitle(document.title || "Untitled Document");
+  }
 
   // Handle live role update
   useEffect(() => {
@@ -387,6 +388,7 @@ function DocumentPage() {
         isOpen={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}
         onVersionRestored={refreshDocument}
+        canEdit={canEdit}
       />
     </div>
   );
