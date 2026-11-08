@@ -9,6 +9,23 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     let destroyed = false;
     let generation = null;
     const remoteOrigin = Symbol("remote");
+    const pendingLocalUpdates = [];
+
+    // Helper: flush queued local updates in original FIFO order once generation is established
+    const flushPendingUpdates = (targetGen) => {
+        if (destroyed || pendingLocalUpdates.length === 0) return;
+
+        console.log(`[Diagnostic:Frontend] Flushing ${pendingLocalUpdates.length} queued update(s) with generation ${targetGen}`);
+
+        while (pendingLocalUpdates.length > 0) {
+            const queuedUpdate = pendingLocalUpdates.shift();
+            socket.emit("sync-yjs", {
+                documentId,
+                update: Array.from(queuedUpdate),
+                generation: targetGen,
+            });
+        }
+    };
 
     // --------------------------------------------------
     // 0. Receive document generation from server
@@ -16,11 +33,17 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
 
     const handleDocumentGeneration = (payload) => {
         if (destroyed) return;
-        if (payload.documentId !== documentId) return;
+        if (!payload || payload.documentId !== documentId) return;
 
-        generation = payload.generation;
+        generation = payload.generation ?? 0;
 
-        console.log("[Yjs] Document generation:", generation);
+        console.log("[Diagnostic:Frontend] Document generation established:", {
+            documentId,
+            generation,
+        });
+
+        // Flush any updates that were queued before generation arrived
+        flushPendingUpdates(generation);
     };
 
     socket.on("document-generation", handleDocumentGeneration);
@@ -35,8 +58,29 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         if (destroyed) return;
         if (origin === remoteOrigin) return;
 
-        // Don't send edits until the server has supplied the generation.
-        if (generation === null) return;
+        console.log("[Diagnostic:Frontend] Yjs local update generated:", {
+            documentId,
+            origin: typeof origin === "symbol" ? origin.toString() : String(origin),
+            bytes: update.length,
+            currentGeneration: generation,
+        });
+
+        // If generation is not yet available, queue the update instead of discarding it
+        if (generation === null) {
+            console.log(
+                "[Diagnostic:Frontend] Generation unavailable; queueing local update until document-generation arrives (queue size: " +
+                (pendingLocalUpdates.length + 1) +
+                ")"
+            );
+            pendingLocalUpdates.push(new Uint8Array(update));
+            return;
+        }
+
+        console.log("[Diagnostic:Frontend] sync-yjs emitted:", {
+            documentId,
+            generation,
+            bytes: update.length,
+        });
 
         socket.emit("sync-yjs", {
             documentId,
@@ -76,12 +120,54 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
      * --------------------------------------------------
      */
 
-    const handleRemoteUpdate = (update) => {
+    const handleRemoteUpdate = (payload) => {
         if (destroyed) return;
-        Y.applyUpdate(ydoc, new Uint8Array(update), remoteOrigin);
+
+        let updateBytes;
+
+        // Structured payload with documentId & generation verification
+        if (payload && typeof payload === "object" && !Array.isArray(payload) && payload.update) {
+            // Reject updates belonging to a different document
+            if (payload.documentId && payload.documentId !== documentId) {
+                console.warn("[Yjs] Rejected cross-document update:", {
+                    activeDocument: documentId,
+                    incomingDocument: payload.documentId,
+                });
+                return;
+            }
+
+            // Reject updates belonging to an outdated generation
+            if (generation !== null && payload.generation !== undefined && payload.generation !== generation) {
+                console.warn("[Yjs] Rejected stale generation update:", {
+                    activeGeneration: generation,
+                    incomingGeneration: payload.generation,
+                });
+                return;
+            }
+
+            updateBytes = payload.update;
+        } else {
+            // Raw binary array fallback
+            updateBytes = payload;
+        }
+
+        if (updateBytes && (Array.isArray(updateBytes) || updateBytes instanceof Uint8Array)) {
+            console.log("[Diagnostic:Frontend] yjs-update received and applying to Y.Doc:", {
+                documentId,
+                bytes: updateBytes.length,
+            });
+            Y.applyUpdate(ydoc, new Uint8Array(updateBytes), remoteOrigin);
+        }
     };
 
     socket.on("yjs-update", handleRemoteUpdate);
+
+    const handleSocketError = (err) => {
+        if (destroyed) return;
+        console.error("[Diagnostic:Frontend] Socket error from server:", err);
+    };
+
+    socket.on("error", handleSocketError);
 
     // --------------------------------------------------
     // 4. Join the document room & request initial awareness
@@ -260,6 +346,15 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         if (destroyed) return;
         destroyed = true;
 
+        pendingLocalUpdates.length = 0; // Clear queued local updates
+
+        // Explicitly leave the Socket.IO document room on the server
+        try {
+            socket.emit("leave-document", { documentId });
+        } catch (e) {
+            console.error("[socketProvider] Error emitting leave-document:", e);
+        }
+
         // Cleanly remove our local awareness state so peers remove our cursor immediately
         try {
             removeAwarenessStates(awareness, [awareness.clientID], "local");
@@ -276,6 +371,7 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         socket.off("awareness-sync-request", handleAwarenessSyncRequest);
         socket.off("document-restored", handleDocumentRestored);
         socket.off("document-generation", handleDocumentGeneration);
+        socket.off("error", handleSocketError);
     }
 
     return { awareness, destroy };

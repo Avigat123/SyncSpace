@@ -20,6 +20,10 @@ export async function getAwareness(documentId) {
 
 }
 
+export function hasAwareness(documentId) {
+    return awarenessMap.has(documentId);
+}
+
 export function removeAwareness(documentId) {
     const awareness = awarenessMap.get(documentId);
 

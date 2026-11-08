@@ -28,7 +28,7 @@ export async function persistYjsUpdate(documentId, update, generation) {
             const document = await Document.findOneAndUpdate(
                 generationFilter,
                 { $inc: { updateSequence: 1 } },
-                { returnDocument: "after", session }
+                { new: true, returnDocument: "after", session }
             );
 
             if (!document) {

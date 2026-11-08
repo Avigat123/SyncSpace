@@ -1,4 +1,5 @@
 import joinDocument from "./handlers/joinDocument.js";
+import leaveDocument from "./handlers/leaveDocument.js";
 import disconnect from "./handlers/disconnect.js";
 import syncYjs from "./handlers/syncYjs.js";
 import syncAwareness, { syncAwarenessRequest, syncAwarenessResponse } from "./handlers/syncAwareness.js";
@@ -9,6 +10,11 @@ export default function registerDocumentHandlers(io, socket) {
     socket.on(
         "join-document",
         joinDocument(io, socket)
+    );
+
+    socket.on(
+        "leave-document",
+        leaveDocument(io, socket)
     );
 
     socket.on(

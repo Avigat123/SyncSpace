@@ -32,6 +32,16 @@ export function getDocumentGeneration(documentId) {
     return documentGenerations.get(documentId) ?? 0;
 }
 
+export function setDocumentGenerationIfNewer(documentId, authoritativeGen) {
+    const candidate = authoritativeGen ?? 0;
+    const current = documentGenerations.get(documentId);
+    if (current === undefined || candidate > current) {
+        documentGenerations.set(documentId, candidate);
+        return candidate;
+    }
+    return current;
+}
+
 export function incrementDocumentGeneration(documentId) {
     const nextGeneration = getDocumentGeneration(documentId) + 1;
 

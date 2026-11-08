@@ -1,10 +1,12 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import mongoose from "mongoose";
 
 import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import documentRoutes from "./routes/document.routes.js";
+import { getRedisHealth, isRedisMandatory } from "./config/redis.js";
 
 const app = express();
 
@@ -37,14 +39,45 @@ app.use("/api/documents", documentRoutes);
 
 /*
 |--------------------------------------------------------------------------
-| Routes
+| Health & Readiness Probes
 |--------------------------------------------------------------------------
 */
 
 app.get("/api/health", (req, res) => {
     res.status(200).json({
-        success: true,
-        message: "API working fine",
+        status: "ok",
+        uptime: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+        service: "syncspace-backend",
+    });
+});
+
+app.get("/api/ready", (req, res) => {
+    const mongoState = mongoose.connection.readyState;
+    const isMongoConnected = mongoState === 1;
+
+    const redisHealth = getRedisHealth();
+    const isRedisRequired = isRedisMandatory();
+
+    // Application is ready if MongoDB is connected and (Redis is connected OR Redis is not required in standalone mode)
+    const isReady = isMongoConnected && (!isRedisRequired || redisHealth.connected);
+
+    res.status(isReady ? 200 : 503).json({
+        ready: isReady,
+        status: isReady ? "ready" : "unavailable",
+        mode: redisHealth.status === "connected" ? "distributed" : "standalone",
+        timestamp: new Date().toISOString(),
+        dependencies: {
+            mongodb: {
+                status: isMongoConnected ? "connected" : "disconnected",
+                readyState: mongoState,
+            },
+            redis: {
+                status: redisHealth.status,
+                connected: redisHealth.connected,
+                required: isRedisRequired,
+            },
+        },
     });
 });
 

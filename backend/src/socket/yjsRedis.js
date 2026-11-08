@@ -1,35 +1,71 @@
+import "../config/env.js";
 import { createClient } from "redis";
 import { randomUUID } from "crypto";
 import * as Y from "yjs";
 import { getYDoc, removeYDoc } from "./yjsStore.js";
 import { getSharedDocumentGeneration, saveTimers } from "./store.js";
 import { removeAwareness } from "./awarenessStore.js";
+import { isRedisOperational, formatRedisError } from "../config/redis.js";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
+let yjsHasConnected = false;
+
 export const yjsPublisher = createClient({
     url: redisUrl,
+    socket: {
+        connectTimeout: 3000,
+        reconnectStrategy: (retries) => {
+            if (!yjsHasConnected) return false;
+            return Math.min(retries * 500, 3000);
+        },
+    },
 });
 
 export const yjsSubscriber = createClient({
     url: redisUrl,
+    socket: {
+        connectTimeout: 3000,
+        reconnectStrategy: (retries) => {
+            if (!yjsHasConnected) return false;
+            return Math.min(retries * 500, 3000);
+        },
+    },
 });
 
+// Always register error listeners immediately to prevent unhandled error events.
 yjsPublisher.on("error", (err) => {
-    console.log("[Yjs Redis Publisher]", err);
-})
+    if (isRedisOperational() && yjsHasConnected) {
+        console.warn("[Yjs Redis Publisher]", formatRedisError(err));
+    }
+});
 
 yjsSubscriber.on("error", (err) => {
-    console.log("[Yjs Redis Subscriber]", err);
-})
+    if (isRedisOperational() && yjsHasConnected) {
+        console.warn("[Yjs Redis Subscriber]", formatRedisError(err));
+    }
+});
 
 export async function connectYjsRedis() {
-    await Promise.all([
-        yjsPublisher.connect(),
-        yjsSubscriber.connect(),
-    ]);
+    if (!isRedisOperational()) {
+        console.log("[Yjs Redis] Skipped: Redis is disabled or offline (standalone mode)");
+        return false;
+    }
 
-    console.log("[Yjs Redis] Publisher and subscriber connected");
+    try {
+        await Promise.all([
+            yjsPublisher.connect(),
+            yjsSubscriber.connect(),
+        ]);
+
+        yjsHasConnected = true;
+        console.log("[Yjs Redis] Publisher and subscriber connected");
+        return true;
+    } catch (err) {
+        yjsHasConnected = false;
+        console.warn("[Yjs Redis] Connection failed:", formatRedisError(err));
+        return false;
+    }
 }
 
 const YJS_CHANNEL = "syncspace:yjs:updates";
@@ -38,6 +74,10 @@ const INSTANCE_ID = randomUUID();
 
 // Publish a local Yjs update to other backend instances.
 export async function publishYjsUpdate(documentId, update, generation) {
+    if (!isRedisOperational() || !yjsPublisher.isOpen) {
+        return false;
+    }
+
     const payload = {
         origin: INSTANCE_ID,
         documentId,
@@ -45,14 +85,24 @@ export async function publishYjsUpdate(documentId, update, generation) {
         update: Buffer.from(update).toString("base64"),
     };
 
-    await yjsPublisher.publish(
-        YJS_CHANNEL,
-        JSON.stringify(payload)
-    );
+    try {
+        await yjsPublisher.publish(
+            YJS_CHANNEL,
+            JSON.stringify(payload)
+        );
+        return true;
+    } catch (err) {
+        console.error("[Yjs Redis] Failed to publish update:", formatRedisError(err));
+        return false;
+    }
 }
 
 // Subscribe to updates from other backend instances.
 export async function subscribeToYjsUpdates() {
+    if (!isRedisOperational() || !yjsSubscriber.isOpen) {
+        return false;
+    }
+
     await yjsSubscriber.subscribe(YJS_CHANNEL, async (message) => {
         try {
             const payload = JSON.parse(message);
@@ -87,8 +137,7 @@ export async function subscribeToYjsUpdates() {
             // Apply the update to this backend's local Y.Doc.
             Y.applyUpdate(ydoc, binaryUpdate, "redis");
 
-
-            console.log(`[Yjs Redis] Applied and broadcast remote update for ${documentId}`);
+            console.log(`[Yjs Redis] Applied remote update for ${documentId}`);
 
         } catch (error) {
             console.error("[Yjs Redis] Update error:", error);
@@ -96,30 +145,45 @@ export async function subscribeToYjsUpdates() {
     });
 
     console.log("[Yjs Redis] Subscribed to update channel");
+    return true;
 }
 
 const RESTORE_CHANNEL = "syncspace:yjs:restores";
 
 // Publish a version restoration to other backend instances.
 export async function publishDocumentRestore(documentId, generation) {
+    if (!isRedisOperational() || !yjsPublisher.isOpen) {
+        return false;
+    }
+
     const payload = {
         origin: INSTANCE_ID,
         documentId,
         generation,
     };
 
-    await yjsPublisher.publish(
-        RESTORE_CHANNEL,
-        JSON.stringify(payload)
-    );
+    try {
+        await yjsPublisher.publish(
+            RESTORE_CHANNEL,
+            JSON.stringify(payload)
+        );
 
-    console.log(
-        `[Yjs Redis] Published restore notification for ${documentId}`
-    );
+        console.log(
+            `[Yjs Redis] Published restore notification for ${documentId}`
+        );
+        return true;
+    } catch (err) {
+        console.error("[Yjs Redis] Failed to publish restore notification:", formatRedisError(err));
+        return false;
+    }
 }
 
 // Listen for version restorations from other backend instances.
 export async function subscribeToYjsRestores() {
+    if (!isRedisOperational() || !yjsSubscriber.isOpen) {
+        return false;
+    }
+
     await yjsSubscriber.subscribe(RESTORE_CHANNEL, async (message) => {
         try {
             const payload = JSON.parse(message);
@@ -166,4 +230,5 @@ export async function subscribeToYjsRestores() {
     });
 
     console.log("[Yjs Redis] Subscribed to restore channel");
+    return true;
 }

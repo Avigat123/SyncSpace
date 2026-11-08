@@ -4,13 +4,18 @@ import Document from "../../models/document.model.js";
 import { activeUsers } from "../store.js";
 import { getYDoc } from "../yjsStore.js";
 import { getAwareness } from "../awarenessStore.js";
-import { getDocumentGeneration } from "../store.js";
+import { getDocumentGeneration, setDocumentGenerationIfNewer } from "../store.js";
+import leaveDocument from "./leaveDocument.js";
 
 export default function joinDocument(io, socket) {
 
     return async function (documentId) {
 
         try {
+            // If socket was previously in a different document, leave it cleanly first
+            if (socket.documentId && socket.documentId !== documentId) {
+                await leaveDocument(io, socket)(socket.documentId);
+            }
 
             // 1. Find the document
             const document = await Document.findById(documentId);
@@ -40,12 +45,16 @@ export default function joinDocument(io, socket) {
             await socket.join(documentId);
             socket.documentId = documentId;
 
+            // Authoritative generation from MongoDB document
+            const authoritativeGen = document.generation ?? 0;
+            const activeGen = setDocumentGenerationIfNewer(documentId, authoritativeGen);
+
             const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
-            console.log(`[joinDocument] socket=${socket.id} joined docId=${documentId} roomSize=${roomSize}`);
+            console.log(`[Diagnostic:Backend] joinDocument: socket=${socket.id} joined docId=${documentId} roomSize=${roomSize} generation=${activeGen}`);
 
             socket.emit("document-generation", {
                 documentId,
-                generation: getDocumentGeneration(documentId),
+                generation: activeGen,
             });
 
             // 5. Awareness synchronization

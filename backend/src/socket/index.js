@@ -1,12 +1,15 @@
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
+import { formatRedisError } from "../config/redis.js";
 
 import registerDocumentHandlers from "./document.socket.js";
 import socketAuth from "./socketAuth.js";
 import { setIO } from "./socketInstance.js";
 
-export default async function initializeSocket(server) {
+export default async function initializeSocket(server, options = {}) {
+    const { redisAvailable = false } = options;
+
     const io = new Server(server, {
         cors: {
             origin: (origin, callback) => {
@@ -22,30 +25,37 @@ export default async function initializeSocket(server) {
         },
     });
 
-    // Redis publisher
-    const pubClient = createClient({
-        url: process.env.REDIS_URL || "redis://localhost:6379",
-    });
+    if (redisAvailable) {
+        try {
+            const pubClient = createClient({
+                url: process.env.REDIS_URL || "redis://localhost:6379",
+                socket: {
+                    connectTimeout: 3000,
+                    reconnectStrategy: (retries) => Math.min(retries * 500, 3000),
+                },
+            });
 
-    // Redis subscriber
-    const subClient = pubClient.duplicate();
+            const subClient = pubClient.duplicate();
 
-    pubClient.on("error", (err) =>
-        console.error("[Redis Publisher Error]", err)
-    );
+            pubClient.on("error", (err) =>
+                console.warn("[Redis Publisher Error]", formatRedisError(err))
+            );
 
-    subClient.on("error", (err) =>
-        console.error("[Redis Subscriber Error]", err)
-    );
+            subClient.on("error", (err) =>
+                console.warn("[Redis Subscriber Error]", formatRedisError(err))
+            );
 
-    await Promise.all([
-        pubClient.connect(),
-        subClient.connect(),
-    ]);
+            await Promise.all([pubClient.connect(), subClient.connect()]);
 
-    io.adapter(createAdapter(pubClient, subClient));
+            io.adapter(createAdapter(pubClient, subClient));
 
-    console.log("[Socket.IO] Redis adapter connected");
+            console.log("[Socket.IO] Redis adapter connected (distributed mode)");
+        } catch (err) {
+            console.warn(`[Socket.IO] Could not attach Redis adapter: ${formatRedisError(err)}. Falling back to in-memory adapter.`);
+        }
+    } else {
+        console.log("[Socket.IO] Running with in-memory adapter (standalone mode)");
+    }
 
     setIO(io);
 
