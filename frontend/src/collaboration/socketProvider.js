@@ -10,21 +10,69 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     let generation = null;
     const remoteOrigin = Symbol("remote");
     const pendingLocalUpdates = [];
+    const localBatchQueue = [];
+    let microBatchTimer = null;
+    const MICRO_BATCH_MS = 25;
+
+    // Helper: flush micro-batched local updates
+    const flushMicroBatch = () => {
+        if (destroyed) return;
+        if (microBatchTimer) {
+            clearTimeout(microBatchTimer);
+            microBatchTimer = null;
+        }
+
+        if (localBatchQueue.length === 0) return;
+
+        // If generation is unavailable or socket is disconnected, preserve in pendingLocalUpdates queue
+        if (generation === null || !socket.connected) {
+            while (localBatchQueue.length > 0) {
+                pendingLocalUpdates.push(localBatchQueue.shift());
+            }
+            return;
+        }
+
+        const batch = localBatchQueue.splice(0, localBatchQueue.length);
+        const mergedUpdate = batch.length === 1 ? batch[0] : Y.mergeUpdates(batch);
+
+        console.log("[Diagnostic:Frontend] sync-yjs emitted (micro-batched):", {
+            documentId,
+            generation,
+            updatesMerged: batch.length,
+            bytes: mergedUpdate.length,
+        });
+
+        socket.emit("sync-yjs", {
+            documentId,
+            update: Array.from(mergedUpdate),
+            generation,
+        });
+    };
 
     // Helper: flush queued local updates in original FIFO order once generation is established
     const flushPendingUpdates = (targetGen) => {
-        if (destroyed || pendingLocalUpdates.length === 0) return;
+        if (destroyed) return;
 
-        console.log(`[Diagnostic:Frontend] Flushing ${pendingLocalUpdates.length} queued update(s) with generation ${targetGen}`);
-
-        while (pendingLocalUpdates.length > 0) {
-            const queuedUpdate = pendingLocalUpdates.shift();
-            socket.emit("sync-yjs", {
-                documentId,
-                update: Array.from(queuedUpdate),
-                generation: targetGen,
-            });
+        if (microBatchTimer) {
+            clearTimeout(microBatchTimer);
+            microBatchTimer = null;
         }
+
+        const allPending = [...pendingLocalUpdates, ...localBatchQueue];
+        pendingLocalUpdates.length = 0;
+        localBatchQueue.length = 0;
+
+        if (allPending.length === 0) return;
+
+        console.log(`[Diagnostic:Frontend] Flushing ${allPending.length} queued update(s) with generation ${targetGen}`);
+
+        const mergedUpdate = allPending.length === 1 ? allPending[0] : Y.mergeUpdates(allPending);
+
+        socket.emit("sync-yjs", {
+            documentId,
+            update: Array.from(mergedUpdate),
+            generation: targetGen,
+        });
     };
 
     // --------------------------------------------------
@@ -65,28 +113,25 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
             currentGeneration: generation,
         });
 
-        // If generation is not yet available, queue the update instead of discarding it
+        const updateCopy = new Uint8Array(update);
+
+        // If generation is not yet available, queue the update until generation arrives
         if (generation === null) {
             console.log(
                 "[Diagnostic:Frontend] Generation unavailable; queueing local update until document-generation arrives (queue size: " +
                 (pendingLocalUpdates.length + 1) +
                 ")"
             );
-            pendingLocalUpdates.push(new Uint8Array(update));
+            pendingLocalUpdates.push(updateCopy);
             return;
         }
 
-        console.log("[Diagnostic:Frontend] sync-yjs emitted:", {
-            documentId,
-            generation,
-            bytes: update.length,
-        });
+        // Micro-batch rapid typing updates (25ms window) to reduce network/DB transactions
+        localBatchQueue.push(updateCopy);
 
-        socket.emit("sync-yjs", {
-            documentId,
-            update: Array.from(update),
-            generation,
-        });
+        if (!microBatchTimer) {
+            microBatchTimer = setTimeout(flushMicroBatch, MICRO_BATCH_MS);
+        }
     };
 
     ydoc.on("update", handleLocalUpdate);
@@ -346,6 +391,27 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         if (destroyed) return;
         destroyed = true;
 
+        if (microBatchTimer) {
+            clearTimeout(microBatchTimer);
+            microBatchTimer = null;
+        }
+
+        // Synchronously flush any pending batched updates before leaving
+        if (generation !== null && localBatchQueue.length > 0) {
+            try {
+                const batch = localBatchQueue.splice(0, localBatchQueue.length);
+                const mergedUpdate = batch.length === 1 ? batch[0] : Y.mergeUpdates(batch);
+                socket.emit("sync-yjs", {
+                    documentId,
+                    update: Array.from(mergedUpdate),
+                    generation,
+                });
+            } catch (e) {
+                console.error("[socketProvider] Error flushing batched updates on destroy:", e);
+            }
+        }
+
+        localBatchQueue.length = 0;
         pendingLocalUpdates.length = 0; // Clear queued local updates
 
         // Explicitly leave the Socket.IO document room on the server

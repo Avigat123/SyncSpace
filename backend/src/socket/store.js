@@ -74,6 +74,28 @@ export function withDocumentWriteLock(documentId, operation) {
     });
 }
 
+/**
+ * Serializes room join/leave transitions per socket to prevent
+ * asynchronous race conditions during rapid document switching or back navigation.
+ */
+const socketRoomLocks = new WeakMap();
+
+export function withSocketRoomLock(socket, operation) {
+    const previous = socketRoomLocks.get(socket) || Promise.resolve();
+
+    const current = previous
+        .catch(() => { })
+        .then(operation);
+
+    socketRoomLocks.set(socket, current);
+
+    return current.finally(() => {
+        if (socketRoomLocks.get(socket) === current) {
+            socketRoomLocks.delete(socket);
+        }
+    });
+}
+
 export function cleanupDocumentState(documentId) {
     // Cancel pending autosave
     const timer = saveTimers.get(documentId);

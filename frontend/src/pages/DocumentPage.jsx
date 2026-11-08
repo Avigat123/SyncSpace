@@ -27,6 +27,7 @@ function DocumentPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [awareness, setAwareness] = useState(null);
+  const [currentYDoc, setCurrentYDoc] = useState(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
 
@@ -62,6 +63,14 @@ function DocumentPage() {
       socket.off("document-restored", handleDocumentRestored);
     };
   }, [documentId, refreshDocument]);
+
+  // Reset document-specific state when switching documents
+  useEffect(() => {
+    setAccessRevoked(false);
+    setRoleOverride(null);
+    setAwareness(null);
+    setCurrentYDoc(null);
+  }, [documentId]);
 
   // Handle access revoked
   useEffect(() => {
@@ -366,10 +375,11 @@ function DocumentPage() {
       {/* Editor Main Canvas */}
       <div className="w-full flex-1">
         <Editor
-          key={editorKey}
+          key={`${documentId}-${editorKey}`}
           documentId={documentId}
           role={currentRole}
           onAwarenessChange={setAwareness}
+          onYDocReady={setCurrentYDoc}
         />
       </div>
 
@@ -389,6 +399,8 @@ function DocumentPage() {
         onClose={() => setShowVersionHistory(false)}
         onVersionRestored={refreshDocument}
         canEdit={canEdit}
+        currentYDoc={currentYDoc}
+        currentTitle={title}
       />
     </div>
   );

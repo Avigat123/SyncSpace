@@ -24,7 +24,7 @@ export default function syncYjs(io, socket) {
                 bytes: update?.length,
             });
 
-            if (!documentId || !Array.isArray(update)) return;
+            if (!documentId || (!Array.isArray(update) && !Buffer.isBuffer(update) && !(update instanceof Uint8Array))) return;
 
             await withDocumentWriteLock(documentId, async () => {
 
@@ -35,8 +35,9 @@ export default function syncYjs(io, socket) {
                     return;
                 }
 
-                // 2. Validate room membership and document ID
-                if (socket.documentId !== documentId) {
+                // 2. Validate room membership and document ID (with self-heal for room state)
+                const isSocketInRoom = socket.rooms.has(documentId);
+                if (socket.documentId !== documentId && !isSocketInRoom) {
                     console.warn(
                         "[Diagnostic:Backend] sync-yjs REJECTED: socket outside room:",
                         { socketDocId: socket.documentId, documentId }
@@ -44,54 +45,45 @@ export default function syncYjs(io, socket) {
                     return;
                 }
 
-                // 3. Fetch document and verify permissions and generation
-                const document = await Document.findById(documentId);
-
-                if (!document || document.isDeleted) {
-                    console.warn("[Diagnostic:Backend] sync-yjs REJECTED: Document not found or in trash:", documentId);
-                    socket.emit("error", "Document not found or moved to trash");
-                    return;
+                if (!isSocketInRoom) {
+                    await socket.join(documentId);
+                }
+                if (socket.documentId !== documentId) {
+                    socket.documentId = documentId;
                 }
 
-                const currentGeneration = document.generation ?? 0;
+                // 3. Fast-path editor permission validation using cached socket role
+                let role = socket.documentRole;
+                if (!role) {
+                    const document = await Document.findById(documentId)
+                        .select("generation owner collaborators isDeleted")
+                        .lean();
 
-                if (generation !== currentGeneration) {
-                    console.warn("[Diagnostic:Backend] sync-yjs REJECTED: Stale generation update:", {
-                        documentId,
-                        receivedGeneration: generation,
-                        currentGeneration,
-                    });
-                    return;
+                    if (!document || document.isDeleted) {
+                        console.warn("[Diagnostic:Backend] sync-yjs REJECTED: Document not found or in trash:", documentId);
+                        socket.emit("error", "Document not found or moved to trash");
+                        return;
+                    }
+
+                    const isOwner = (document.owner?._id || document.owner).toString() === socket.user._id.toString();
+                    const collaborator = document.collaborators?.find(
+                        c => (c.user?._id || c.user).toString() === socket.user._id.toString()
+                    );
+
+                    role = isOwner ? "owner" : collaborator?.role;
+                    socket.documentRole = role;
                 }
 
-                // 4. Validate editor permission
-                const isOwner = (document.owner?._id || document.owner).toString() === socket.user._id.toString();
-
-                const collaborator = document.collaborators?.find(
-                    c => (c.user?._id || c.user).toString() === socket.user._id.toString()
-                );
-
-                console.log("[Diagnostic:Backend] Permission validation:", {
-                    isOwner,
-                    hasCollaborator: !!collaborator,
-                    role: isOwner ? "owner" : collaborator?.role,
-                });
-
-                if (!isOwner && !collaborator) {
-                    console.warn("[Diagnostic:Backend] sync-yjs REJECTED: Access revoked for user:", socket.user._id);
-                    socket.emit("error", "Access revoked");
-                    return;
-                }
-
-                if (!isOwner && collaborator.role !== "editor") {
+                if (role !== "owner" && role !== "editor") {
                     console.warn("[Diagnostic:Backend] sync-yjs REJECTED: Read-only access for user:", socket.user._id);
                     socket.emit("error", "Read-only access");
                     return;
                 }
 
-                const binaryUpdate = new Uint8Array(update);
+                const currentGeneration = generation ?? 0;
+                const binaryUpdate = Buffer.isBuffer(update) ? new Uint8Array(update) : new Uint8Array(update);
 
-                // 5. Persist the update transactionally (broadcast only after successful persistence)
+                // 4. Persist the update transactionally (broadcast only after successful persistence)
                 let sequence;
                 try {
                     sequence = await persistYjsUpdate(
@@ -119,18 +111,18 @@ export default function syncYjs(io, socket) {
                     return;
                 }
 
-                // 6. Apply the update to this backend's Y.Doc.
+                // 5. Apply the update to this backend's Y.Doc.
                 const ydoc = await getYDoc(documentId);
                 Y.applyUpdate(ydoc, binaryUpdate);
 
-                // 7. Publish to other backend instances via Redis.
+                // 6. Publish to other backend instances via Redis.
                 await publishYjsUpdate(
                     documentId,
                     binaryUpdate,
                     currentGeneration
                 );
 
-                // 8. Broadcast to connected clients with document and generation integrity
+                // 7. Broadcast to connected clients with document and generation integrity
                 const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
                 socket.to(documentId).emit("yjs-update", {
                     documentId,
@@ -150,10 +142,8 @@ export default function syncYjs(io, socket) {
                     sequence,
                 });
 
-                // Check whether the compaction threshold has been reached.
-                const snapshotSequence = document.snapshotSequence ?? 0;
-
-                shouldCompact = sequence - snapshotSequence >= 100;
+                // Check whether the compaction threshold has been reached (every 100 updates)
+                shouldCompact = sequence > 0 && sequence % 100 === 0;
             });
 
             // IMPORTANT: This runs after the write lock is released.

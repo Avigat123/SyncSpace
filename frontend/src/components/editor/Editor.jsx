@@ -3,8 +3,14 @@ import { EditorContent } from "@tiptap/react";
 import useCollaborativeEditor from "../../hooks/useCollaborativeEditor";
 import Toolbar from "./Toolbar";
 
-export default function Editor({ documentId, role, onAwarenessChange }) {
-  const { editor, awareness } = useCollaborativeEditor(documentId, role);
+export default function Editor({ documentId, role, onAwarenessChange, onYDocReady }) {
+  const { editor, ydoc, awareness } = useCollaborativeEditor(documentId, role);
+
+  useEffect(() => {
+    if (ydoc && onYDocReady) {
+      onYDocReady(ydoc);
+    }
+  }, [ydoc, onYDocReady]);
 
   useEffect(() => {
     if (awareness && onAwarenessChange) {

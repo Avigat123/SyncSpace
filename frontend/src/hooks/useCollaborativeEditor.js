@@ -16,25 +16,39 @@ export default function useCollaborativeEditor(documentId, role) {
 
   /*
    * ---------------------------------------------
-   * 1. Create Y.Doc
+   * 1. Create or retrieve active Y.Doc
    * ---------------------------------------------
    */
 
-  const ydoc = useMemo(
-    () => createYDoc(),
-    [documentId]
-  );
+  const ydocRef = useRef(null);
+  const currentDocIdRef = useRef(null);
+
+  // If documentId changed or ydoc is missing / destroyed, create a fresh Y.Doc
+  if (!ydocRef.current || ydocRef.current.destroyed || currentDocIdRef.current !== documentId) {
+    if (ydocRef.current && !ydocRef.current.destroyed) {
+      ydocRef.current.destroy();
+    }
+    ydocRef.current = createYDoc();
+    currentDocIdRef.current = documentId;
+  }
+
+  const ydoc = ydocRef.current;
 
   /*
    * ---------------------------------------------
-   * 2. Create Awareness
+   * 2. Create or retrieve active Awareness
    * ---------------------------------------------
    */
 
-  const awareness = useMemo(
-    () => createAwareness(ydoc),
-    [ydoc]
-  );
+  const awarenessRef = useRef(null);
+  if (!awarenessRef.current || awarenessRef.current.doc !== ydoc || ydoc.destroyed) {
+    if (awarenessRef.current) {
+      awarenessRef.current.destroy();
+    }
+    awarenessRef.current = createAwareness(ydoc);
+  }
+
+  const awareness = awarenessRef.current;
 
   // Diagnostic: log awareness states on every change
   useEffect(() => {
@@ -127,6 +141,7 @@ export default function useCollaborativeEditor(documentId, role) {
       shouldRerenderOnTransaction: true,
     },
     [
+      documentId,
       ydoc,
       awareness,
       user,
@@ -157,6 +172,20 @@ export default function useCollaborativeEditor(documentId, role) {
     };
 
   }, [editor]);
+
+  // Clean up Y.Doc and Awareness when hook unmounts or documentId changes
+  useEffect(() => {
+    return () => {
+      if (awarenessRef.current) {
+        awarenessRef.current.destroy();
+        awarenessRef.current = null;
+      }
+      if (ydocRef.current && !ydocRef.current.destroyed) {
+        ydocRef.current.destroy();
+        ydocRef.current = null;
+      }
+    };
+  }, [documentId]);
 
   return { editor, ydoc, awareness };
 }

@@ -24,9 +24,26 @@ async function request(path, options = {}) {
         ...options,
     });
 
-    const data = await response.json();
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        data = { message: response.statusText || "Request failed" };
+    }
 
     if (!response.ok) {
+        // If an authenticated endpoint returns 401, trigger session invalidation across tabs
+        if (
+            response.status === 401 &&
+            !path.startsWith("/auth/me") &&
+            !path.startsWith("/auth/login") &&
+            !path.startsWith("/auth/register")
+        ) {
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("syncspace:unauthorized"));
+            }
+        }
+
         throw new Error(data.message || "Request failed");
     }
 

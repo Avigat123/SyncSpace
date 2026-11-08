@@ -196,11 +196,11 @@ export default function ShareDialog({
                 </div>
 
                 {/* Role Select */}
-                <div className="relative">
+                <div className="relative flex items-center">
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest px-space-md py-1.5 pr-7 rounded-md cursor-pointer transition-colors focus:outline-none"
+                    className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest pl-3.5 pr-7 py-1.5 rounded-md cursor-pointer transition-colors focus:outline-none text-center font-medium leading-none"
                   >
                     <option value="editor">Editor</option>
                     <option value="viewer">Viewer</option>
@@ -333,13 +333,13 @@ export default function ShareDialog({
 
                     <div className="flex items-center gap-space-xs">
                       {isOwner ? (
-                        <div className="relative">
+                        <div className="relative flex items-center">
                           <select
                             value={collaborator.role}
                             onChange={(e) =>
                               handleRoleChange(cUser._id, e.target.value)
                             }
-                            className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface px- space-sm py-1 pr-6 rounded cursor-pointer transition-colors focus:outline-none"
+                            className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest pl-3.5 pr-7 py-1 rounded cursor-pointer transition-colors focus:outline-none text-center font-medium leading-none"
                           >
                             <option value="editor">Editor</option>
                             <option value="viewer">Viewer</option>
@@ -347,12 +347,12 @@ export default function ShareDialog({
                               Remove access
                             </option>
                           </select>
-                          <span className="material-symbols-outlined absolute right-1 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
+                          <span className="material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
                             expand_more
                           </span>
                         </div>
                       ) : (
-                        <span className="font-label-sm text-label-sm bg-surface-container text-on-surface-variant px-space-sm py-1 rounded capitalize">
+                        <span className="font-label-sm text-label-sm bg-surface-container text-on-surface-variant px-space-sm py-1 rounded capitalize text-center">
                           {collaborator.role}
                         </span>
                       )}
