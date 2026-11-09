@@ -58,9 +58,6 @@ export default function joinDocument(io, socket) {
                 const authoritativeGen = document.generation ?? 0;
                 const activeGen = setDocumentGenerationIfNewer(documentId, authoritativeGen);
 
-                const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
-                console.log(`[Diagnostic:Backend] joinDocument: socket=${socket.id} joined docId=${documentId} roomSize=${roomSize} generation=${activeGen}`);
-
                 socket.emit("document-generation", {
                     documentId,
                     generation: activeGen,
@@ -89,7 +86,7 @@ export default function joinDocument(io, socket) {
 
                 // 6. Send current Y.Doc state to the joining client
                 const update = Y.encodeStateAsUpdate(ydoc);
-                socket.emit("sync-document", Array.from(update));
+                socket.emit("sync-document", Buffer.from(update));
 
                 // 7. Track active users
                 if (!activeUsers.has(documentId)) {

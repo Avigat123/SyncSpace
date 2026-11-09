@@ -487,19 +487,6 @@ export default function Toolbar({ editor }) {
   // Text color helper
   const currentColor = () => editorState?.color || null;
 
-  // Alignment helper
-  const isAlignActive = (align) => {
-    if (align === "left") {
-      return (
-        editor.isActive({ textAlign: "left" }) ||
-        (!editor.isActive({ textAlign: "center" }) &&
-          !editor.isActive({ textAlign: "right" }) &&
-          !editor.isActive({ textAlign: "justify" }))
-      );
-    }
-    return editor.isActive({ textAlign: align });
-  };
-
   const getBtnClass = (isActive) =>
     `w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer select-none active:scale-95 ${
       isActive

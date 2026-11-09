@@ -313,7 +313,7 @@ export const updateCollaboratorRole = asyncHandler(async (req, res) => {
     // 1. Update the collaborator's role in the database.
     await documentService.updateCollaboratorRole(id, collaboratorId, role);
 
-    // 2. Notify the collaborator's active sockets.
+    // 2. Notify the collaborator's active sockets and update server-cached role.
     const io = getIO();
     const documentRoom = io.sockets.adapter.rooms.get(id);
 
@@ -321,6 +321,7 @@ export const updateCollaboratorRole = asyncHandler(async (req, res) => {
         for (const socketId of documentRoom) {
             const activeSocket = io.sockets.sockets.get(socketId);
             if (activeSocket && activeSocket.user._id.toString() === collaboratorId) {
+                activeSocket.documentRole = role; // Immediately update cached socket role on server
                 activeSocket.emit("collaborator-role-updated", { documentId: id, role });
             }
         }

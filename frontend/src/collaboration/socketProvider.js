@@ -4,6 +4,13 @@ import {
     applyAwarenessUpdate,
     removeAwarenessStates,
 } from "y-protocols/awareness";
+import { latencyTelemetry } from "./latencyTelemetry.js";
+import {
+    savePendingUpdate,
+    removePendingUpdate,
+    getPendingUpdatesForDocument,
+    clearPendingUpdatesForDocument,
+} from "./indexedDbStorage.js";
 
 export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     let destroyed = false;
@@ -11,11 +18,17 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     const remoteOrigin = Symbol("remote");
     const pendingLocalUpdates = [];
     const localBatchQueue = [];
+    const unacknowledgedUpdates = new Map(); // updateId -> Uint8Array
     let microBatchTimer = null;
     const MICRO_BATCH_MS = 25;
+    let currentBatchUpdateId = null;
+    let batchStartTime = 0;
+    let hasReceivedInitialSync = false;
+    let hasReceivedGeneration = false;
+    let isRecovering = false;
 
-    // Helper: flush micro-batched local updates
-    const flushMicroBatch = () => {
+    // Helper: flush micro-batched local updates (strictly awaits IndexedDB commit before emit)
+    const flushMicroBatch = async () => {
         if (destroyed) return;
         if (microBatchTimer) {
             clearTimeout(microBatchTimer);
@@ -32,30 +45,63 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
             return;
         }
 
+        const batchDurationMs = batchStartTime > 0 ? performance.now() - batchStartTime : 0;
+        const updateId = currentBatchUpdateId || `upd_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        currentBatchUpdateId = null;
+        batchStartTime = 0;
+
         const batch = localBatchQueue.splice(0, localBatchQueue.length);
         const mergedUpdate = batch.length === 1 ? batch[0] : Y.mergeUpdates(batch);
 
-        console.log("[Diagnostic:Frontend] sync-yjs emitted (micro-batched):", {
+        // 1. Commit to durable IndexedDB storage BEFORE socket emission and await transaction completion
+        const t_idb_start = performance.now();
+        const persisted = await savePendingUpdate({
             documentId,
+            updateId,
             generation,
-            updatesMerged: batch.length,
-            bytes: mergedUpdate.length,
+            update: mergedUpdate,
         });
+        const idbDurationMs = Number((performance.now() - t_idb_start).toFixed(2));
 
+        if (!persisted) {
+            console.warn("[socketProvider] Failed to commit update to durable IndexedDB; queuing in volatile memory only");
+        }
+
+        if (destroyed) return;
+
+        // Retain in unacknowledged buffer until server confirms persistence via yjs-ack
+        unacknowledgedUpdates.set(updateId, mergedUpdate);
+
+        latencyTelemetry.recordBatchFlush(updateId, batchDurationMs, mergedUpdate.length, batch.length);
+
+        // 2. Emit ONLY after IndexedDB transaction has finished
         socket.emit("sync-yjs", {
             documentId,
-            update: Array.from(mergedUpdate),
+            update: mergedUpdate,
             generation,
+            updateId,
+            clientTimings: {
+                batchDurationMs: Number(batchDurationMs.toFixed(2)),
+                idbDurationMs,
+            },
         });
     };
 
     // Helper: flush queued local updates in original FIFO order once generation is established
-    const flushPendingUpdates = (targetGen) => {
+    const flushPendingUpdates = async (targetGen) => {
         if (destroyed) return;
 
         if (microBatchTimer) {
             clearTimeout(microBatchTimer);
             microBatchTimer = null;
+        }
+
+        // Recover any unacknowledged in-flight updates that were emitted before disconnect
+        if (unacknowledgedUpdates.size > 0) {
+            for (const [updId, updateBytes] of unacknowledgedUpdates.entries()) {
+                pendingLocalUpdates.push({ update: updateBytes, updateId: updId });
+            }
+            unacknowledgedUpdates.clear();
         }
 
         const allPending = [...pendingLocalUpdates, ...localBatchQueue];
@@ -64,15 +110,88 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
 
         if (allPending.length === 0) return;
 
-        console.log(`[Diagnostic:Frontend] Flushing ${allPending.length} queued update(s) with generation ${targetGen}`);
+        const rawUpdates = [];
+        const oldIdsToClean = [];
 
-        const mergedUpdate = allPending.length === 1 ? allPending[0] : Y.mergeUpdates(allPending);
+        for (const item of allPending) {
+            if (item && item.update && item.updateId) {
+                rawUpdates.push(item.update);
+                oldIdsToClean.push(item.updateId);
+            } else if (item instanceof Uint8Array || Array.isArray(item)) {
+                rawUpdates.push(item instanceof Uint8Array ? item : new Uint8Array(item));
+            }
+        }
+
+        if (rawUpdates.length === 0) return;
+
+        const mergedUpdate = rawUpdates.length === 1 ? rawUpdates[0] : Y.mergeUpdates(rawUpdates);
+        const batchUpdateId = `upd_flush_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+        // Clean up individual old IDs from IndexedDB
+        for (const oldId of oldIdsToClean) {
+            removePendingUpdate(documentId, oldId).catch(() => {});
+        }
+
+        // Retain merged update in unacknowledged buffer and commit to durable IndexedDB before emit
+        const t_idb_start = performance.now();
+        const persisted = await savePendingUpdate({
+            documentId,
+            updateId: batchUpdateId,
+            generation: targetGen,
+            update: mergedUpdate,
+        });
+        const idbDurationMs = Number((performance.now() - t_idb_start).toFixed(2));
+
+        if (!persisted) {
+            console.warn("[socketProvider] Failed to commit flushed update to durable IndexedDB");
+        }
+
+        if (destroyed) return;
+
+        unacknowledgedUpdates.set(batchUpdateId, mergedUpdate);
 
         socket.emit("sync-yjs", {
             documentId,
-            update: Array.from(mergedUpdate),
+            update: mergedUpdate,
             generation: targetGen,
+            updateId: batchUpdateId,
+            clientTimings: {
+                idbDurationMs,
+            },
         });
+    };
+
+    // Helper: coordinate initial document sync and durable recovery without race conditions
+    const coordinateInitialSyncAndRecovery = async () => {
+        if (destroyed || isRecovering || !hasReceivedGeneration || !hasReceivedInitialSync) return;
+        isRecovering = true;
+
+        try {
+            const recovered = await getPendingUpdatesForDocument(documentId, generation);
+            if (recovered.length > 0 && !destroyed) {
+                console.log(`[Diagnostic:Frontend] Recovered ${recovered.length} pending update(s) from IndexedDB for doc ${documentId}`);
+                for (const item of recovered) {
+                    if (!unacknowledgedUpdates.has(item.updateId)) {
+                        // Apply locally to ydoc now that ydoc has its base state from sync-document
+                        try {
+                            Y.applyUpdate(ydoc, item.update, remoteOrigin);
+                        } catch (err) {
+                            console.warn("[Diagnostic:Frontend] Error applying recovered update to Y.Doc:", err);
+                        }
+                        pendingLocalUpdates.push({
+                            update: item.update,
+                            updateId: item.updateId,
+                        });
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("[Diagnostic:Frontend] Error recovering pending updates from IndexedDB:", err);
+        }
+
+        if (!destroyed) {
+            await flushPendingUpdates(generation);
+        }
     };
 
     // --------------------------------------------------
@@ -80,18 +199,18 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     // --------------------------------------------------
 
     const handleDocumentGeneration = (payload) => {
-        if (destroyed) return;
-        if (!payload || payload.documentId !== documentId) return;
+        if (destroyed || !payload || payload.documentId !== documentId) return;
 
         generation = payload.generation ?? 0;
+        hasReceivedGeneration = true;
 
         console.log("[Diagnostic:Frontend] Document generation established:", {
             documentId,
             generation,
         });
 
-        // Flush any updates that were queued before generation arrived
-        flushPendingUpdates(generation);
+        // Trigger coordinated recovery once both generation and initial sync have arrived
+        coordinateInitialSyncAndRecovery();
     };
 
     socket.on("document-generation", handleDocumentGeneration);
@@ -106,27 +225,32 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         if (destroyed) return;
         if (origin === remoteOrigin) return;
 
-        console.log("[Diagnostic:Frontend] Yjs local update generated:", {
-            documentId,
-            origin: typeof origin === "symbol" ? origin.toString() : String(origin),
-            bytes: update.length,
-            currentGeneration: generation,
-        });
-
         const updateCopy = new Uint8Array(update);
 
-        // If generation is not yet available, queue the update until generation arrives
+        // If generation is not yet available, queue and persist update until generation arrives
         if (generation === null) {
-            console.log(
-                "[Diagnostic:Frontend] Generation unavailable; queueing local update until document-generation arrives (queue size: " +
-                (pendingLocalUpdates.length + 1) +
-                ")"
-            );
-            pendingLocalUpdates.push(updateCopy);
+            const preGenUpdateId = `upd_pre_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            pendingLocalUpdates.push({
+                update: updateCopy,
+                updateId: preGenUpdateId,
+            });
+            unacknowledgedUpdates.set(preGenUpdateId, updateCopy);
+            savePendingUpdate({
+                documentId,
+                updateId: preGenUpdateId,
+                generation: null,
+                update: updateCopy,
+            }).catch((err) => console.warn("[socketProvider] Failed to persist pre-generation update:", err));
             return;
         }
 
         // Micro-batch rapid typing updates (25ms window) to reduce network/DB transactions
+        if (localBatchQueue.length === 0) {
+            currentBatchUpdateId = `upd_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            batchStartTime = performance.now();
+            latencyTelemetry.recordBatchStart(currentBatchUpdateId);
+        }
+
         localBatchQueue.push(updateCopy);
 
         if (!microBatchTimer) {
@@ -143,8 +267,17 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
      */
 
     const handleInitialSync = (update) => {
-        if (destroyed) return;
-        Y.applyUpdate(ydoc, new Uint8Array(update), remoteOrigin);
+        if (destroyed || !update) return;
+        const binary = update instanceof Uint8Array
+            ? update
+            : update instanceof ArrayBuffer
+            ? new Uint8Array(update)
+            : new Uint8Array(update);
+        Y.applyUpdate(ydoc, binary, remoteOrigin);
+        hasReceivedInitialSync = true;
+
+        // Trigger coordinated recovery once both generation and initial sync have arrived
+        coordinateInitialSyncAndRecovery();
     };
 
     socket.on("sync-document", handleInitialSync);
@@ -152,6 +285,19 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     const handleDocumentRestored = (payload) => {
         if (destroyed) return;
         if (payload.documentId !== documentId) return;
+
+        // Discard all pending local and queued updates
+        pendingLocalUpdates.length = 0;
+        localBatchQueue.length = 0;
+        unacknowledgedUpdates.clear();
+        hasReceivedInitialSync = false;
+        hasReceivedGeneration = false;
+        isRecovering = false;
+
+        // Purge pre-restore pending updates from IndexedDB for this document
+        clearPendingUpdatesForDocument(documentId).catch((err) => {
+            console.warn("[socketProvider] Failed to clear IndexedDB on document restore:", err);
+        });
 
         // DocumentPage will remount the editor.
         // The new provider will request state through join-document.
@@ -196,16 +342,57 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
             updateBytes = payload;
         }
 
-        if (updateBytes && (Array.isArray(updateBytes) || updateBytes instanceof Uint8Array)) {
-            console.log("[Diagnostic:Frontend] yjs-update received and applying to Y.Doc:", {
-                documentId,
-                bytes: updateBytes.length,
-            });
-            Y.applyUpdate(ydoc, new Uint8Array(updateBytes), remoteOrigin);
+        if (updateBytes && (Array.isArray(updateBytes) || updateBytes instanceof Uint8Array || updateBytes instanceof ArrayBuffer)) {
+            const binary = updateBytes instanceof Uint8Array
+                ? updateBytes
+                : updateBytes instanceof ArrayBuffer
+                ? new Uint8Array(updateBytes)
+                : new Uint8Array(updateBytes);
+
+            const t_apply_start = performance.now();
+            Y.applyUpdate(ydoc, binary, remoteOrigin);
+            const t_apply_end = performance.now();
+            const remoteApplicationMs = Number((t_apply_end - t_apply_start).toFixed(2));
+            latencyTelemetry.recordRemoteApply(remoteApplicationMs);
+
+            // Acknowledge remote delivery & application back to sender
+            if (payload && payload.updateId) {
+                socket.emit("yjs-delivery-ack", {
+                    documentId,
+                    updateId: payload.updateId,
+                    remoteApplicationMs,
+                });
+            }
         }
     };
 
     socket.on("yjs-update", handleRemoteUpdate);
+
+    // Latency diagnostic server acknowledgement listener
+    const handleServerAck = (payload) => {
+        if (destroyed || !payload || payload.documentId !== documentId) return;
+        if (payload.updateId) {
+            unacknowledgedUpdates.delete(payload.updateId);
+            removePendingUpdate(documentId, payload.updateId).catch((err) => {
+                console.warn("[socketProvider] Failed to remove acknowledged update from IndexedDB:", err);
+            });
+            if (payload.serverTimings) {
+                latencyTelemetry.recordServerAck(payload.updateId, payload.serverTimings);
+            }
+        }
+    };
+
+    socket.on("yjs-ack", handleServerAck);
+
+    // Latency diagnostic remote delivery acknowledgement listener
+    const handleDeliveryAck = (payload) => {
+        if (destroyed || !payload || payload.documentId !== documentId) return;
+        if (payload.updateId && payload.remoteApplicationMs !== undefined) {
+            latencyTelemetry.recordDeliveryAck(payload.updateId, payload.remoteApplicationMs);
+        }
+    };
+
+    socket.on("yjs-delivery-ack", handleDeliveryAck);
 
     const handleSocketError = (err) => {
         if (destroyed) return;
@@ -219,6 +406,10 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
     // --------------------------------------------------
     function joinRoom() {
         if (destroyed) return;
+
+        hasReceivedInitialSync = false;
+        hasReceivedGeneration = false;
+        isRecovering = false;
 
         socket.emit("join-document", documentId);
 
@@ -401,10 +592,18 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
             try {
                 const batch = localBatchQueue.splice(0, localBatchQueue.length);
                 const mergedUpdate = batch.length === 1 ? batch[0] : Y.mergeUpdates(batch);
+                const exitUpdateId = currentBatchUpdateId || `upd_exit_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+                savePendingUpdate({
+                    documentId,
+                    updateId: exitUpdateId,
+                    generation,
+                    update: mergedUpdate,
+                }).catch(() => {});
                 socket.emit("sync-yjs", {
                     documentId,
-                    update: Array.from(mergedUpdate),
+                    update: mergedUpdate,
                     generation,
+                    updateId: exitUpdateId,
                 });
             } catch (e) {
                 console.error("[socketProvider] Error flushing batched updates on destroy:", e);
@@ -413,6 +612,7 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
 
         localBatchQueue.length = 0;
         pendingLocalUpdates.length = 0; // Clear queued local updates
+        unacknowledgedUpdates.clear();
 
         // Explicitly leave the Socket.IO document room on the server
         try {
@@ -437,6 +637,8 @@ export function createSocketProvider({ socket, ydoc, awareness, documentId }) {
         socket.off("awareness-sync-request", handleAwarenessSyncRequest);
         socket.off("document-restored", handleDocumentRestored);
         socket.off("document-generation", handleDocumentGeneration);
+        socket.off("yjs-ack", handleServerAck);
+        socket.off("yjs-delivery-ack", handleDeliveryAck);
         socket.off("error", handleSocketError);
     }
 

@@ -34,7 +34,9 @@ export function ThemeProvider({ children }) {
 
     try {
       localStorage.setItem("syncspace_theme", theme);
-    } catch {}
+    } catch {
+      // Ignore localStorage errors in private browsing
+    }
   }, [theme, isDark]);
 
   // Listen to system theme changes if user hasn't explicitly set preference

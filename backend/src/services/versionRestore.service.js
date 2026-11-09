@@ -6,6 +6,7 @@ import YjsUpdate from "../models/yjsUpdate.model.js";
 import { setYDoc } from "../socket/yjsStore.js";
 import { removeAwareness } from "../socket/awarenessStore.js";
 import { saveTimers, withDocumentWriteLock } from "../socket/store.js";
+import { clearAccumulator } from "../socket/yjsAccumulator.js";
 
 export async function restoreVersionState(documentId, versionId) {
     console.log("[restoreVersion] Controller reached");
@@ -74,6 +75,9 @@ export async function restoreVersionState(documentId, versionId) {
                 clearTimeout(timer);
                 saveTimers.delete(documentId);
             }
+
+            // Clean up any pending accumulator updates from previous generation.
+            await clearAccumulator(documentId);
 
             // Clean up old awareness state.
             removeAwareness(documentId);

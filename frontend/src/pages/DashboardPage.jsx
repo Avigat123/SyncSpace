@@ -35,7 +35,9 @@ function DashboardPage() {
         : [...prev, id];
       try {
         localStorage.setItem("syncspace_starred_docs", JSON.stringify(next));
-      } catch { }
+      } catch {
+        // Ignore localStorage quota/private mode errors
+      }
       return next;
     });
   };

@@ -42,6 +42,11 @@ export default function registerDocumentHandlers(io, socket) {
         requestDocumentSync(io, socket)
     );
 
+    socket.on("yjs-delivery-ack", (payload) => {
+        if (!payload || !payload.documentId) return;
+        socket.to(payload.documentId).emit("yjs-delivery-ack", payload);
+    });
+
     socket.on(
         "disconnect",
         disconnect(io, socket)

@@ -11,7 +11,7 @@ export default function requestDocumentSync(io, socket) {
             const ydoc = await getYDoc(documentId);
             const state = Y.encodeStateAsUpdate(ydoc);
 
-            socket.emit("sync-document", Array.from(state));
+            socket.emit("sync-document", Buffer.from(state));
         } catch (error) {
             console.error("[requestDocumentSync] Failed:", error);
             socket.emit("error", "Unable to synchronize document");

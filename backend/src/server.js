@@ -5,10 +5,29 @@ import initializeSocket from "./socket/index.js";
 import connectDB from "./config/db.js";
 import { connectMainRedis } from "./config/redis.js";
 import { connectYjsRedis, subscribeToYjsUpdates, subscribeToYjsRestores } from "./socket/yjsRedis.js";
+import { flushAllAccumulators } from "./socket/yjsAccumulator.js";
 
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
+
+// Graceful shutdown: flush any pending Yjs document accumulators to MongoDB
+const handleShutdown = async (signal) => {
+    console.log(`\n[Server] Received ${signal}. Flushing pending Yjs accumulators to MongoDB...`);
+    try {
+        await flushAllAccumulators();
+        console.log("[Server] All Yjs batches flushed successfully.");
+    } catch (err) {
+        console.error("[Server] Error during graceful Yjs flush:", err);
+    }
+    server.close(() => {
+        console.log("[Server] HTTP server closed.");
+        process.exit(0);
+    });
+};
+
+process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+process.on("SIGINT", () => handleShutdown("SIGINT"));
 
 const startServer = async () => {
     try {

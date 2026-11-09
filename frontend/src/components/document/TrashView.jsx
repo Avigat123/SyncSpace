@@ -75,11 +75,13 @@ export default function TrashView({ onDocumentRestored, onBack }) {
     }
   };
 
+  const [currentTime] = useState(() => Date.now());
+
   const getDaysRemaining = (deletedAt) => {
     if (!deletedAt) return 30;
     const deletedTime = new Date(deletedAt).getTime();
     const expiresAt = deletedTime + 30 * 24 * 60 * 60 * 1000;
-    const remainingMs = expiresAt - Date.now();
+    const remainingMs = expiresAt - currentTime;
     const days = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
     return Math.max(0, days);
   };

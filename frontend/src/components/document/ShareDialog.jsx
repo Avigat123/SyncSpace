@@ -153,11 +153,10 @@ export default function ShareDialog({
           {/* Status Message */}
           {message.text && (
             <div
-              className={`p-3 rounded-lg text-body-sm flex items-center gap-2 ${
-                message.type === "error"
+              className={`p-3 rounded-lg text-body-sm flex items-center gap-2 ${message.type === "error"
                   ? "bg-error-container text-on-error-container"
                   : "bg-tertiary-container/20 text-tertiary border border-tertiary/20"
-              }`}
+                }`}
             >
               <span className="material-symbols-outlined text-[18px]">
                 {message.type === "error" ? "error" : "check_circle"}
@@ -189,21 +188,21 @@ export default function ShareDialog({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter email address (e.g. maya@syncspace.io)..."
+                    placeholder="Enter email address"
                     className="w-full bg-transparent font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none py-1"
                     required
                   />
                 </div>
 
                 {/* Role Select */}
-                <div className="relative flex items-center">
+                <div className="relative flex items-center justify-center">
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest pl-3.5 pr-7 py-1.5 rounded-md cursor-pointer transition-colors focus:outline-none text-center font-medium leading-none"
+                    className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest pl-3 pr-6 py-1.5 rounded-md cursor-pointer transition-colors focus:outline-none text-center font-medium leading-none min-w-[88px]"
                   >
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Viewer</option>
+                    <option value="editor" className="text-center">Editor</option>
+                    <option value="viewer" className="text-center">Viewer</option>
                   </select>
                   <span className="material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[16px]">
                     expand_more
@@ -244,11 +243,10 @@ export default function ShareDialog({
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className={`group inline-flex items-center gap-space-xs px-space-md py-1.5 rounded-md transition-all font-label-md text-label-md cursor-pointer border ${
-                  copied
+                className={`group inline-flex items-center gap-space-xs px-space-md py-1.5 rounded-md transition-all font-label-md text-label-md cursor-pointer border ${copied
                     ? "bg-tertiary-container/30 text-tertiary border-tertiary/30"
                     : "bg-surface-container-lowest text-primary border-[#E8E8E5] hover:bg-primary hover:text-on-primary"
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined text-[16px]">
                   {copied ? "check" : "link"}
@@ -333,17 +331,17 @@ export default function ShareDialog({
 
                     <div className="flex items-center gap-space-xs">
                       {isOwner ? (
-                        <div className="relative flex items-center">
+                        <div className="relative flex items-center justify-center">
                           <select
                             value={collaborator.role}
                             onChange={(e) =>
                               handleRoleChange(cUser._id, e.target.value)
                             }
-                            className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest pl-3.5 pr-7 py-1 rounded cursor-pointer transition-colors focus:outline-none text-center font-medium leading-none"
+                            className="appearance-none font-label-md text-label-md bg-surface-container-high text-on-surface hover:bg-surface-container-highest pl-3 pr-6 py-1 rounded cursor-pointer transition-colors focus:outline-none text-center font-medium leading-none min-w-[88px]"
                           >
-                            <option value="editor">Editor</option>
-                            <option value="viewer">Viewer</option>
-                            <option value="remove" className="text-error font-medium">
+                            <option value="editor" className="text-center">Editor</option>
+                            <option value="viewer" className="text-center">Viewer</option>
+                            <option value="remove" className="text-error font-medium text-center">
                               Remove access
                             </option>
                           </select>
