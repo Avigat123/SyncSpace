@@ -65,6 +65,7 @@ export default function joinDocument(io, socket) {
 
                 // 5. Awareness synchronization
                 const awareness = await getAwareness(documentId);
+                const roomSize = io.sockets.adapter.rooms.get(documentId)?.size ?? 0;
 
                 // Request existing clients in the room to send their awareness to the newly joined client
                 if (roomSize > 1) {
