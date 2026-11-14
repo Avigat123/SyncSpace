@@ -73,9 +73,9 @@ export function syncAwarenessResponse(io, socket) {
   return function ({ documentId, targetSocketId, update }) {
     try {
       if (!documentId || !targetSocketId || !update) return;
-      
+
       // console.log("[AWARENESS SYNC RESPONSE delivered]", {
-      
+
       //   documentId,
       //   fromSocket: socket.id,
       //   targetSocketId,

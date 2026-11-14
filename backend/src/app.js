@@ -10,6 +10,8 @@ import { getRedisHealth, isRedisMandatory } from "./config/redis.js";
 
 const app = express();
 
+app.disable("x-powered-by");
+
 /*
 |--------------------------------------------------------------------------
 | Middlewares
